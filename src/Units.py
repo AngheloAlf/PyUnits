@@ -1,27 +1,24 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Union, Optional, List, Tuple
 from collections import Counter
 
 from Prefixes import magnitudeFactor, isValidPrefix
 
+NumberType = Union[int, float]
 
 class RepresentableUnit(ABC):
-    @abstractmethod
     def copy(self):
-        pass
+        obj = super().__new__(self.getClass())
 
-    @abstractmethod
-    def mulByNumber(self, number):
-        pass
+        for key, value in self.__dict__.items():
+            if isinstance(value, list):
+                obj.__dict__[key] = list(value)
+            else:
+                obj.__dict__[key] = value
 
-    @abstractmethod
-    def divByNumber(self, number):
-        pass
-
-    def className(self):
-        return self.__class__.__name__
+        return obj
 
     @abstractmethod
     def getClass(self):
@@ -30,31 +27,88 @@ class RepresentableUnit(ABC):
     def instanceChild(self, *args, **kwargs):
         return self.getClass()(*args, **kwargs)
 
+    def className(self) -> str:
+        return self.__class__.__name__
+
+
     @abstractmethod
-    def baseUnit(self):
+    def baseUnit(self) -> Tuple[List[str], List[str]]:
         pass
 
     @abstractmethod
-    def baseUnitStr(self):
+    def unitWithPrefix(self) -> Tuple[List[str], List[str]]:
         pass
+
+    def baseUnitStr(self) -> str:
+        num_units, denom_units = self.baseUnit()
+
+        num_unit = "1"
+        if len(num_units) > 0:
+            num_unit = "*".join(num_units)
+
+        denom_unit = ""
+        if len(denom_units) > 0:
+            denom_unit = "*".join(denom_units)
+            denom_unit = f"/({denom_unit})"
+
+        return f"{num_unit}{denom_unit}"
+
+    def unitWithPrefixStr(self) -> str:
+        num_units, denom_units = self.unitWithPrefix()
+
+        num_unit = "1"
+        if len(num_units) > 0:
+            num_unit = "*".join(num_units)
+
+        denom_unit = ""
+        if len(denom_units) > 0:
+            denom_unit = "*".join(denom_units)
+            denom_unit = f"/({denom_unit})"
+
+        return f"{num_unit}{denom_unit}"
 
     @abstractmethod
-    def unitWithPrefix(self):
+    def valueStr(self) -> str:
         pass
 
-    @abstractmethod
-    def unitWithPrefixStr(self):
-        pass
 
-    @abstractmethod
-    def valueStr(self):
-        pass
+    # @abstractmethod
+    # def value(self, *, ) -> Number:
+    #     pass
 
-    def __str__(self):
+
+    def __str__(self) -> str:
         return f"<{self.valueStr()} [{self.unitWithPrefixStr()}]>"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
+
+
+    @abstractmethod
+    def mulByNumber(self, number: NumberType):
+        pass
+
+    @abstractmethod
+    def divByNumber(self, number: NumberType):
+        pass
+
+
+    @abstractmethod
+    def __add__(self, other):
+        pass
+
+    @abstractmethod
+    def __radd__(self, other):
+        pass
+
+
+    @abstractmethod
+    def __sub__(self, other):
+        pass
+
+    @abstractmethod
+    def __rsub__(self, other):
+        pass
 
 
     def __mul__(self, other):
@@ -73,7 +127,7 @@ class RepresentableUnit(ABC):
 
 
 class BaseUnit(RepresentableUnit):
-    def __init__(self, value, prefix, exp10, priority, default_prefix, unit):
+    def __init__(self, value: NumberType, prefix: str, exp10: int, priority: Optional[bool], default_prefix: str, unit: str):
         assert(isValidPrefix(prefix))
         assert(isValidPrefix(default_prefix))
 
@@ -86,36 +140,21 @@ class BaseUnit(RepresentableUnit):
         self._default_prefix = default_prefix
         self._unit = unit
 
-    def copy(self):
-        obj = object.__new__(self.getClass())
 
-        obj._value = self._value
-        obj._prefix = self._prefix
-        obj._exp10 = self._exp10
+    def baseUnit(self) -> Tuple[List[str], List[str]]:
+        return ([self._unit], [])
 
-        obj._priority = self._priority
+    def unitWithPrefix(self) -> Tuple[List[str], List[str]]:
+        return ([f"{self._prefix}{self._unit}"], [])
 
-        obj._default_prefix = self._default_prefix
-        obj._unit = self._unit
-
-        return obj
-
-    def mulByNumber(self, number):
-        assert(isinstance(number, (int, float)))
-        result = self.copy()
-        result._value *= number
-        return result
-
-    def divByNumber(self, number):
-        assert(isinstance(number, (int, float)))
-        if number == 0:
-            raise ZeroDivisionError()
-        result = self.copy()
-        result._value /= number
-        return result
+    def valueStr(self) -> str:
+        exp = ""
+        if self._exp10:
+            exp = f"e{self._exp10}"
+        return f"{self._value}{exp}"
 
 
-    def value(self, *, new_prefix=None, use_actual_prefix=False):
+    def value(self, *, new_prefix=None, use_actual_prefix=False) -> NumberType:
         validate_params = new_prefix==None and use_actual_prefix==False
         validate_params = validate_params or (new_prefix!=None and use_actual_prefix==False)
         validate_params = validate_params or (new_prefix==None and use_actual_prefix==True)
@@ -132,31 +171,26 @@ class BaseUnit(RepresentableUnit):
         result = self._value * factor
         return result
 
-    def baseUnit(self):
-        return ([self._unit], [])
 
-    def baseUnitStr(self):
-        return self.baseUnit()[0][0]
+    def mulByNumber(self, number: NumberType) -> BaseUnit:
+        assert(isinstance(number, (int, float)))
+        result = self.copy()
+        result._value *= number
+        return result
 
-    def unitWithPrefix(self):
-        return ([f"{self._prefix}{self._unit}"], [])
-
-    def unitWithPrefixStr(self):
-        return self.unitWithPrefix()[0][0]
-
-    def valueStr(self):
-        exp = ""
-        if self._exp10:
-            exp = f"e{self._exp10}"
-        return f"{self._value}{exp}"
+    def divByNumber(self, number: NumberType) -> BaseUnit:
+        assert(isinstance(number, (int, float)))
+        if number == 0:
+            raise ZeroDivisionError()
+        result = self.copy()
+        result._value /= number
+        return result
 
 
-    def _dataForAddsAndSubs(self, other):
+    def _dataForAddsAndSubs(self, other: BaseUnit) -> Tuple[NumberType, NumberType, str, int, bool]:
         if not isinstance(other, BaseUnit):
             raise TypeError("no u")
 
-        left = 0
-        right = 0
         prefix = ""
         exp10 = 0
         priority = None
@@ -177,14 +211,14 @@ class BaseUnit(RepresentableUnit):
         return (left, right, prefix, exp10, priority)
 
 
-    def __add__(self, other):
+    def __add__(self, other: BaseUnit) -> BaseUnit:
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
         left, right, prefix, exp10, priority = self._dataForAddsAndSubs(other)
         return self.instanceChild(left + right, prefix=prefix, exp10=exp10, priority=priority)
 
-    def __radd__(self, other):
+    def __radd__(self, other: BaseUnit) -> BaseUnit:
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
@@ -192,72 +226,72 @@ class BaseUnit(RepresentableUnit):
         return self.instanceChild(left + right, prefix=prefix, exp10=exp10, priority=priority)
 
 
-    def __sub__(self, other):
+    def __sub__(self, other: BaseUnit) -> BaseUnit:
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        left, right, prefix, exp10, priority = self._dataForOperator(other)
+        left, right, prefix, exp10, priority = self._dataForAddsAndSubs(other)
         return self.instanceChild(left - right, prefix=prefix, exp10=exp10, priority=priority)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: BaseUnit) -> BaseUnit:
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        right, left, prefix, exp10, priority = self._dataForOperator(other)
+        right, left, prefix, exp10, priority = self._dataForAddsAndSubs(other)
         return self.instanceChild(left - right, prefix=prefix, exp10=exp10, priority=priority)
 
 
 class DimensionLessUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="_")
 
     def getClass(self):
         return DimensionLessUnit
 
 class LengthUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="m")
 
     def getClass(self):
         return LengthUnit
 
 class MassUnit(BaseUnit):
-    def __init__(self, value, *, prefix="k", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="k", unit="g")
 
     def getClass(self):
         return MassUnit
 
 class TemperatureUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="K")
 
     def getClass(self):
         return TemperatureUnit
 
 class TimeUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="s")
 
     def getClass(self):
         return TimeUnit
 
 class SubstanceUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="mol")
 
     def getClass(self):
         return SubstanceUnit
 
 class ElectricCurrentUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="A")
 
     def getClass(self):
         return ElectricCurrentUnit
 
 class LuminousIntensityUnit(BaseUnit):
-    def __init__(self, value, *, prefix="", exp10=0, priority=None):
+    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="cd")
 
     def getClass(self):
@@ -345,10 +379,10 @@ class CombinationUnits(RepresentableUnit):
         assert(isinstance(right, (BaseUnit, CombinationUnits, type(None))))
         assert(not (left is None and right is None))
 
-        self._numerator = []
-        self._denominator = []
-        self._num_scalar = 1
-        self._denom_scalar = 1
+        self._numerator: List[BaseUnit] = []
+        self._denominator: List[BaseUnit] = []
+        self._num_scalar: NumberType = 1
+        self._denom_scalar: NumberType = 1
 
         if left == None:
             pass
@@ -380,127 +414,14 @@ class CombinationUnits(RepresentableUnit):
                 self._denom_scalar *= right._denom_scalar
         return
 
-    def copy(self):
-        obj = object.__new__(self.getClass())
-
-        obj._num_scalar = self._num_scalar
-        obj._denom_scalar = self._denom_scalar
-
-        obj._numerator = list(self._numerator)
-        obj._denominator = list(self._denominator)
-
-        return obj
-
-    def mulByNumber(self, number):
-        assert(isinstance(number, (int, float)))
-        result = self.copy()
-        result._num_scalar *= number
-        return result
-
-    def divByNumber(self, number):
-        assert(isinstance(number, (int, float)))
-        if number == 0:
-            raise ZeroDivisionError()
-        result = self.copy()
-        result._denom_scalar *= number
-        return result
-
-
-    def unitFromNumerator(self, basic_unit: str) -> Tuple[CombinationUnits, BaseUnit]:
-        copy = self.copy()
-        for i in range(len(copy._numerator)):
-            val = copy._numerator[i]
-            if val.baseUnit() == basic_unit:
-                del copy._numerator[i]
-                return (copy, val)
-        return (copy, None)
-
-    def unitFromDenominator(self, basic_unit: str) -> Tuple[CombinationUnits, BaseUnit]:
-        copy = self.copy()
-        for i in range(len(copy._denominator)):
-            val = copy._denominator[i]
-            if val.baseUnit() == basic_unit:
-                del copy._denominator[i]
-                return (copy, val)
-        return (copy, None)
-
-
-    def mulByUnit(self, unit: BaseUnit) -> CombinationUnits:
-        assert(isinstance(unit, BaseUnit))
-        result, val = self.unitFromDenominator(unit.baseUnit())
-        if val != None:
-            aux = unit/val
-            return result.mulByNumber(aux)
-        result._numerator.append(unit)
-        return result
-
-
-    def divByUnit(self, unit: BaseUnit) -> CombinationUnits:
-        assert(isinstance(unit, BaseUnit))
-        result, val = self.unitFromNumerator(unit.baseUnit())
-        if val != None:
-            aux = val/unit
-            return result.mulByNumber(aux)
-        result._denominator.append(unit)
-        return result
-
-
-    # TODO: this
-    def __add__(self, other):
-        if not isinstance(other, self.getClass()):
-            return NotImplemented
-
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for +: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
-
-        return NotImplemented
-
-    # TODO: this
-    def __radd__(self, other):
-        if not isinstance(other, self.getClass()):
-            return NotImplemented
-
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for +: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
-
-        return NotImplemented
-
-
-    # TODO: this
-    def __sub__(self, other):
-        if not isinstance(other, self.getClass()):
-            return NotImplemented
-
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for -: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
-
-        return NotImplemented
-
-    # TODO: this
-    def __rsub__(self, other):
-        if not isinstance(other, self.getClass()):
-            return NotImplemented
-
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for -: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
-
-        return NotImplemented
-
 
     def getClass(self):
         return CombinationUnits
 
-    def baseUnit(self):
-        num_units = []
-        denom_units = []
+
+    def baseUnit(self) -> Tuple[List[str], List[str]]:
+        num_units: List[str] = []
+        denom_units: List[str] = []
 
         for i in self._numerator:
             num, den = i.baseUnit()
@@ -514,23 +435,9 @@ class CombinationUnits(RepresentableUnit):
         
         return (num_units, denom_units)
 
-    def baseUnitStr(self):
-        num_units, denom_units = self.baseUnit()
-
-        num_unit = "1"
-        if len(num_units) > 0:
-            num_unit = "*".join(num_units)
-
-        denom_unit = ""
-        if len(denom_units) > 0:
-            denom_unit = "*".join(denom_units)
-            denom_unit = f"/({denom_unit})"
-
-        return f"{num_unit}{denom_unit}"
-
-    def unitWithPrefix(self):
-        num_units = []
-        denom_units = []
+    def unitWithPrefix(self) -> Tuple[List[str], List[str]]:
+        num_units: List[str] = []
+        denom_units: List[str] = []
 
         for i in self._numerator:
             num, den = i.unitWithPrefix()
@@ -544,21 +451,7 @@ class CombinationUnits(RepresentableUnit):
 
         return (num_units, denom_units)
 
-    def unitWithPrefixStr(self):
-        num_units, denom_units = self.unitWithPrefix()
-
-        num_unit = "1"
-        if len(num_units) > 0:
-            num_unit = "*".join(num_units)
-
-        denom_unit = ""
-        if len(denom_units) > 0:
-            denom_unit = "*".join(denom_units)
-            denom_unit = f"/({denom_unit})"
-
-        return f"{num_unit}{denom_unit}"
-
-    def valueStr(self):
+    def valueStr(self) -> str:
         num_units = []
         for i in self._numerator:
             num_units.append(i.valueStr())
@@ -588,7 +481,7 @@ class CombinationUnits(RepresentableUnit):
         return f"{scalar}{num_unit}{denom_unit}"
 
 
-    def value(self, *, use_actual_prefix=False):
+    def value(self, *, use_actual_prefix=False) -> NumberType:
         num_result = self._num_scalar
         for i in self._numerator:
             num_result *= i.value(use_actual_prefix=use_actual_prefix)
@@ -600,13 +493,117 @@ class CombinationUnits(RepresentableUnit):
         return num_result/denom_result
 
 
+    def unitFromNumerator(self, basic_unit: str) -> Tuple[CombinationUnits, Optional[BaseUnit]]:
+        copy = self.copy()
+        for i in range(len(copy._numerator)):
+            val = copy._numerator[i]
+            if val.baseUnit() == basic_unit:
+                del copy._numerator[i]
+                return (copy, val)
+        return (copy, None)
+
+    def unitFromDenominator(self, basic_unit: str) -> Tuple[CombinationUnits, Optional[BaseUnit]]:
+        copy = self.copy()
+        for i in range(len(copy._denominator)):
+            val = copy._denominator[i]
+            if val.baseUnit() == basic_unit:
+                del copy._denominator[i]
+                return (copy, val)
+        return (copy, None)
+
+
+    def mulByNumber(self, number: NumberType) -> CombinationUnits:
+        assert(isinstance(number, (int, float)))
+        result = self.copy()
+        result._num_scalar *= number
+        return result
+
+    def divByNumber(self, number: NumberType) -> CombinationUnits:
+        assert(isinstance(number, (int, float)))
+        if number == 0:
+            raise ZeroDivisionError()
+        result = self.copy()
+        result._denom_scalar *= number
+        return result
+
+
+    def mulByUnit(self, unit: BaseUnit) -> CombinationUnits:
+        assert(isinstance(unit, BaseUnit))
+        result, val = self.unitFromDenominator(unit.baseUnit()[0][0])
+        if val != None:
+            aux = unit/val
+            return result.mulByNumber(aux)
+        result._numerator.append(unit)
+        return result
+
+    def divByUnit(self, unit: BaseUnit) -> CombinationUnits:
+        assert(isinstance(unit, BaseUnit))
+        result, val = self.unitFromNumerator(unit.baseUnit()[0][0])
+        if val != None:
+            aux = val/unit
+            return result.mulByNumber(aux)
+        result._denominator.append(unit)
+        return result
+
+
+    # TODO: this
+    def __add__(self, other: CombinationUnits) -> CombinationUnits:
+        if not isinstance(other, self.getClass()):
+            return NotImplemented
+
+        num1, denom1 = self.baseUnit()
+        num2, denom2 = other.baseUnit()
+        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
+            raise TypeError(f"unsupported operand units for +: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
+
+        return NotImplemented
+
+    # TODO: this
+    def __radd__(self, other: CombinationUnits) -> CombinationUnits:
+        if not isinstance(other, self.getClass()):
+            return NotImplemented
+
+        num1, denom1 = self.baseUnit()
+        num2, denom2 = other.baseUnit()
+        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
+            raise TypeError(f"unsupported operand units for +: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
+
+        return NotImplemented
+
+
+    # TODO: this
+    def __sub__(self, other: CombinationUnits) -> CombinationUnits:
+        if not isinstance(other, self.getClass()):
+            return NotImplemented
+
+        num1, denom1 = self.baseUnit()
+        num2, denom2 = other.baseUnit()
+        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
+            raise TypeError(f"unsupported operand units for -: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
+
+        return NotImplemented
+
+    # TODO: this
+    def __rsub__(self, other: CombinationUnits) -> CombinationUnits:
+        if not isinstance(other, self.getClass()):
+            return NotImplemented
+
+        num1, denom1 = self.baseUnit()
+        num2, denom2 = other.baseUnit()
+        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
+            raise TypeError(f"unsupported operand units for -: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
+
+        return NotImplemented
+
+
 a = LengthUnit(15)
 b = MassUnit(8)
 c = TimeUnit(2)
 
 n = a*b/(c*c)
 
+print(a, a.value())
 print(n, n.value())
 
-test = n + a*b
+test = n - n
 print(test, test.value())
