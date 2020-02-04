@@ -32,16 +32,14 @@ class RepresentableUnit(ABC):
 
 
     @abstractmethod
-    def baseUnit(self) -> Tuple[List[str], List[str]]:
+    def unitWithoutPrefix(self) -> Tuple[List[str], List[str]]:
         pass
 
     @abstractmethod
     def unitWithPrefix(self) -> Tuple[List[str], List[str]]:
         pass
 
-    def baseUnitStr(self) -> str:
-        num_units, denom_units = self.baseUnit()
-
+    def _parseUnitsToStr(self, num_units: List[str], denom_units: List[str]) -> str:
         if len(num_units) == 0 and len(denom_units) == 0:
             return ""
 
@@ -55,23 +53,14 @@ class RepresentableUnit(ABC):
             denom_unit = f"/({denom_unit})"
 
         return f"{num_unit}{denom_unit}"
+
+    def unitWithoutPrefixStr(self) -> str:
+        num_units, denom_units = self.unitWithoutPrefix()
+        return self._parseUnitsToStr(num_units, denom_units)
 
     def unitWithPrefixStr(self) -> str:
         num_units, denom_units = self.unitWithPrefix()
-
-        if len(num_units) == 0 and len(denom_units) == 0:
-            return ""
-
-        num_unit = "1"
-        if len(num_units) > 0:
-            num_unit = "*".join(num_units)
-
-        denom_unit = ""
-        if len(denom_units) > 0:
-            denom_unit = "*".join(denom_units)
-            denom_unit = f"/({denom_unit})"
-
-        return f"{num_unit}{denom_unit}"
+        return self._parseUnitsToStr(num_units, denom_units)
 
     @abstractmethod
     def valueStr(self) -> str:
@@ -147,7 +136,7 @@ class BaseUnit(RepresentableUnit):
         self._unit = unit
 
 
-    def baseUnit(self) -> Tuple[List[str], List[str]]:
+    def unitWithoutPrefix(self) -> Tuple[List[str], List[str]]:
         return ([self._unit], [])
 
     def unitWithPrefix(self) -> Tuple[List[str], List[str]]:
@@ -307,75 +296,46 @@ class LuminousIntensityUnit(BaseUnit):
 class CombinationUnits(RepresentableUnit):
     def __new__(cls, left, right, *, divide: bool):
         # at most one is a number or None
-        # assert(not (isinstance(left, (int, float, type(None))) and isinstance(right, (int, float, type(None)))))
         if isinstance(left, (int, float, type(None))) and isinstance(right, (int, float, type(None))):
             raise TypeError("At least one parameter must be an unit or a combination of units.")
 
-        if isinstance(left, (int, float)):
-            if left == 1:
-                return CombinationUnits(None, right, divide=divide)
+        if right is None:
+            return left.copy()
 
-            if divide:
-                if right.value() == 0:
-                    raise ZeroDivisionError()
-                tmp = CombinationUnits(None, right, divide=divide)
-                return tmp.mulByNumber(left)
-            else:
-                return right.mulByNumber(left)
-        elif isinstance(right, (int, float)):
-            if right == 1:
-                return CombinationUnits(left, None, divide=divide)
-
-            if divide:
-                if right == 0:
-                    raise ZeroDivisionError()
+        if divide and left is not None:
+            if isinstance(right, (int, float)):
                 return left.divByNumber(right)
-            else:
-                return left.mulByNumber(right)
 
-        if divide and right.value() == 0:
-            raise ZeroDivisionError()
+            if isinstance(left, BaseUnit) and isinstance(right, left.getClass()):
+                result = left.value() / right.value()
+                return result
 
-        if divide and isinstance(left, BaseUnit) and isinstance(right, left.getClass()):
-            result = left.value() / right.value()
-            return result
+            new_right = CombinationUnits(None, right, divide=True)
+            if left is None:
+                return new_right
+            return CombinationUnits(left, new_right, divide=False)
 
+        if isinstance(left, (int, float)):
+            return right.mulByNumber(left)
+        elif isinstance(right, (int, float)):
+            return left.mulByNumber(right)
 
         if isinstance(left, CombinationUnits) and isinstance(right, BaseUnit):
-            if divide:
-                return left.divByUnit(right)
-            else:
-                return left.mulByUnit(right)
-
-        if isinstance(left, BaseUnit) and isinstance(right, CombinationUnits):
-            if divide:
-                tmp = CombinationUnits(None, right, divide=divide)
-                return tmp.mulByUnit(left)
-            else:
-                return right.mulByUnit(left)
-
-        if isinstance(left, CombinationUnits) and isinstance(right, CombinationUnits):
+            return left.mulByUnit(right)
+        elif isinstance(left, BaseUnit) and isinstance(right, CombinationUnits):
+            return right.mulByUnit(left)
+        elif isinstance(left, CombinationUnits) and isinstance(right, CombinationUnits):
             result = left.copy()
             for unit in right._numerator:
-                if divide:
-                    result = result.divByUnit(unit)
-                else:
-                    result = result.mulByUnit(unit)
+                result = result.mulByUnit(unit)
 
             for unit in right._denominator:
-                if divide:
-                    result = result.mulByUnit(unit)
-                else:
-                    result = result.divByUnit(unit)
+                result = result.divByUnit(unit)
 
-            if divide:
-                result.divByNumber(right._num_scalar)
-                result.mulByNumber(right._denom_scalar)
-            else:
-                result.mulByNumber(right._num_scalar)
-                result.divByNumber(right._denom_scalar)
+            result.mulByNumber(right._num_scalar)
+            result.divByNumber(right._denom_scalar)
 
-            num_units, denom_units = result.baseUnit()
+            num_units, denom_units = result.unitWithoutPrefix()
             if len(num_units) == 0 and len(denom_units) == 0:
                 return result.value()
 
@@ -415,6 +375,8 @@ class CombinationUnits(RepresentableUnit):
                 self._numerator.append(right)
         elif isinstance(right, CombinationUnits):
             if divide:
+                if right.value() == 0:
+                    raise ZeroDivisionError()
                 self._numerator += list(right._denominator)
                 self._denominator += list(right._numerator)
                 self._num_scalar *= right._denom_scalar
@@ -448,17 +410,17 @@ class CombinationUnits(RepresentableUnit):
         return CombinationUnits
 
 
-    def baseUnit(self) -> Tuple[List[str], List[str]]:
+    def unitWithoutPrefix(self) -> Tuple[List[str], List[str]]:
         num_units: List[str] = []
         denom_units: List[str] = []
 
         for i in self._numerator:
-            num, den = i.baseUnit()
+            num, den = i.unitWithoutPrefix()
             num_units += num
             denom_units += den
 
         for i in self._denominator:
-            num, den = i.baseUnit()
+            num, den = i.unitWithoutPrefix()
             denom_units += num
             num_units += den
         
@@ -537,7 +499,7 @@ class CombinationUnits(RepresentableUnit):
         copy = self.copy()
         for i in range(len(copy._numerator)):
             val = copy._numerator[i]
-            if val.baseUnit()[0][0] == basic_unit:
+            if val.unitWithoutPrefix()[0][0] == basic_unit:
                 del copy._numerator[i]
                 return (copy, val)
         return (copy, None)
@@ -546,7 +508,7 @@ class CombinationUnits(RepresentableUnit):
         copy = self.copy()
         for i in range(len(copy._denominator)):
             val = copy._denominator[i]
-            if val.baseUnit()[0][0] == basic_unit:
+            if val.unitWithoutPrefix()[0][0] == basic_unit:
                 del copy._denominator[i]
                 return (copy, val)
         return (copy, None)
@@ -569,7 +531,7 @@ class CombinationUnits(RepresentableUnit):
 
     def mulByUnit(self, unit: BaseUnit) -> CombinationUnits:
         assert(isinstance(unit, BaseUnit))
-        result, val = self.unitFromDenominator(unit.baseUnit()[0][0])
+        result, val = self.unitFromDenominator(unit.unitWithoutPrefix()[0][0])
         if val != None:
             aux = unit/val
             return result.mulByNumber(aux)
@@ -578,7 +540,7 @@ class CombinationUnits(RepresentableUnit):
 
     def divByUnit(self, unit: BaseUnit) -> CombinationUnits:
         assert(isinstance(unit, BaseUnit))
-        result, val = self.unitFromNumerator(unit.baseUnit()[0][0])
+        result, val = self.unitFromNumerator(unit.unitWithoutPrefix()[0][0])
         if val != None:
             aux = val/unit
             return result.mulByNumber(aux)
@@ -586,17 +548,22 @@ class CombinationUnits(RepresentableUnit):
         return result
 
 
+    def _dataForAddsAndSubs(self, right: CombinationUnits, sign: str) -> Tuple[CombinationUnits, CombinationUnits]:
+        num1, denom1 = self.unitWithoutPrefix()
+        num2, denom2 = right.unitWithoutPrefix()
+        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
+            raise TypeError(f"unsupported operand units for {sign}: '{self.unitWithoutPrefixStr()}' and '{right.unitWithoutPrefixStr()}'")
+
+        left = self.factorizeValuesIntoScalars()
+        right = right.factorizeValuesIntoScalars()
+        return (left, right)
+
+
     def __add__(self, other: CombinationUnits) -> CombinationUnits:
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for +: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
-
-        left = self.factorizeValuesIntoScalars()
-        right = other.factorizeValuesIntoScalars()
+        left, right = self._dataForAddsAndSubs(other, "+")
 
         result = left.copy()
         result._num_scalar = left._num_scalar * right._denom_scalar + right._num_scalar * left._denom_scalar
@@ -608,13 +575,7 @@ class CombinationUnits(RepresentableUnit):
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for +: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
-
-        left = other.factorizeValuesIntoScalars()
-        right = self.factorizeValuesIntoScalars()
+        left, right = other._dataForAddsAndSubs(self, "+")
 
         result = left.copy()
         result._num_scalar = left._num_scalar * right._denom_scalar + right._num_scalar * left._denom_scalar
@@ -627,13 +588,7 @@ class CombinationUnits(RepresentableUnit):
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for -: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
-
-        left = self.factorizeValuesIntoScalars()
-        right = other.factorizeValuesIntoScalars()
+        left, right = self._dataForAddsAndSubs(other, "-")
 
         result = left.copy()
         result._num_scalar = left._num_scalar * right._denom_scalar - right._num_scalar * left._denom_scalar
@@ -645,13 +600,7 @@ class CombinationUnits(RepresentableUnit):
         if not isinstance(other, self.getClass()):
             return NotImplemented
 
-        num1, denom1 = self.baseUnit()
-        num2, denom2 = other.baseUnit()
-        if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
-            raise TypeError(f"unsupported operand units for -: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
-
-        left = other.factorizeValuesIntoScalars()
-        right = self.factorizeValuesIntoScalars()
+        left, right = other._dataForAddsAndSubs(self, "-")
 
         result = left.copy()
         result._num_scalar = left._num_scalar * right._denom_scalar - right._num_scalar * left._denom_scalar
@@ -670,4 +619,4 @@ n = a*b/(c*c)
 # print(n, n.value())
 
 test = n - n
-print(test)
+print(n/n)
