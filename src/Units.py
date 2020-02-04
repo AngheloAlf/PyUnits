@@ -426,6 +426,23 @@ class CombinationUnits(RepresentableUnit):
                 self._denom_scalar *= right._denom_scalar
         return
 
+    def factorizeValuesIntoScalars(self):
+        cpy = self.copy()
+
+        for i in range(len(cpy._numerator)):
+            value_with_unit = cpy._numerator[i]
+            value = value_with_unit.value(use_actual_prefix=True)
+            cpy._num_scalar *= value
+            cpy._numerator[i] = value_with_unit/value
+
+        for i in range(len(cpy._denominator)):
+            value_with_unit = cpy._denominator[i]
+            value = value_with_unit.value(use_actual_prefix=True)
+            cpy._denom_scalar *= value
+            cpy._denominator[i] = value_with_unit/value
+
+        return cpy
+
 
     def getClass(self):
         return CombinationUnits
@@ -493,14 +510,25 @@ class CombinationUnits(RepresentableUnit):
         return f"{scalar}{num_unit}{denom_unit}"
 
 
-    def value(self, *, use_actual_prefix=False) -> NumberType:
-        num_result = self._num_scalar
+    def numeratorValueWithoutScalar(self, *, use_actual_prefix=False) -> NumberType:
+        num_result = 1.0
         for i in self._numerator:
             num_result *= i.value(use_actual_prefix=use_actual_prefix)
+        return num_result
+
+    def denominatorValueWithoutScalar(self, *, use_actual_prefix=False) -> NumberType:
+        result = 1.0
+        for i in self._denominator:
+            result *= i.value(use_actual_prefix=use_actual_prefix)
+        return result
+
+
+    def value(self, *, use_actual_prefix=False) -> NumberType:
+        num_result = self._num_scalar
+        num_result *= self.numeratorValueWithoutScalar(use_actual_prefix=use_actual_prefix)
 
         denom_result = self._denom_scalar
-        for i in self._denominator:
-            denom_result *= i.value(use_actual_prefix=use_actual_prefix)
+        denom_result *= self.denominatorValueWithoutScalar(use_actual_prefix=use_actual_prefix)
 
         return num_result/denom_result
 
@@ -558,7 +586,6 @@ class CombinationUnits(RepresentableUnit):
         return result
 
 
-    # TODO: this
     def __add__(self, other: CombinationUnits) -> CombinationUnits:
         if not isinstance(other, self.getClass()):
             return NotImplemented
@@ -568,9 +595,15 @@ class CombinationUnits(RepresentableUnit):
         if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
             raise TypeError(f"unsupported operand units for +: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
 
-        return NotImplemented
+        left = self.factorizeValuesIntoScalars()
+        right = other.factorizeValuesIntoScalars()
 
-    # TODO: this
+        result = left.copy()
+        result._num_scalar = left._num_scalar * right._denom_scalar + right._num_scalar * left._denom_scalar
+        result._denom_scalar = left._denom_scalar * right._denom_scalar
+
+        return result
+
     def __radd__(self, other: CombinationUnits) -> CombinationUnits:
         if not isinstance(other, self.getClass()):
             return NotImplemented
@@ -580,10 +613,16 @@ class CombinationUnits(RepresentableUnit):
         if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
             raise TypeError(f"unsupported operand units for +: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
 
-        return NotImplemented
+        left = other.factorizeValuesIntoScalars()
+        right = self.factorizeValuesIntoScalars()
+
+        result = left.copy()
+        result._num_scalar = left._num_scalar * right._denom_scalar + right._num_scalar * left._denom_scalar
+        result._denom_scalar = left._denom_scalar * right._denom_scalar
+
+        return result
 
 
-    # TODO: this
     def __sub__(self, other: CombinationUnits) -> CombinationUnits:
         if not isinstance(other, self.getClass()):
             return NotImplemented
@@ -593,9 +632,15 @@ class CombinationUnits(RepresentableUnit):
         if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
             raise TypeError(f"unsupported operand units for -: '{self.baseUnitStr()}' and '{other.baseUnitStr()}'")
 
-        return NotImplemented
+        left = self.factorizeValuesIntoScalars()
+        right = other.factorizeValuesIntoScalars()
 
-    # TODO: this
+        result = left.copy()
+        result._num_scalar = left._num_scalar * right._denom_scalar - right._num_scalar * left._denom_scalar
+        result._denom_scalar = left._denom_scalar * right._denom_scalar
+
+        return result
+
     def __rsub__(self, other: CombinationUnits) -> CombinationUnits:
         if not isinstance(other, self.getClass()):
             return NotImplemented
@@ -605,7 +650,14 @@ class CombinationUnits(RepresentableUnit):
         if not (Counter(num1) == Counter(num2) and Counter(denom1) == Counter(denom2)):
             raise TypeError(f"unsupported operand units for -: '{other.baseUnitStr()}' and '{self.baseUnitStr()}'")
 
-        return NotImplemented
+        left = other.factorizeValuesIntoScalars()
+        right = self.factorizeValuesIntoScalars()
+
+        result = left.copy()
+        result._num_scalar = left._num_scalar * right._denom_scalar - right._num_scalar * left._denom_scalar
+        result._denom_scalar = left._denom_scalar * right._denom_scalar
+
+        return result
 
 
 a = LengthUnit(15)
@@ -614,8 +666,8 @@ c = TimeUnit(2)
 
 n = a*b/(c*c)
 
-print(a, a.value())
-print(n, n.value())
+# print(a, a.value())
+# print(n, n.value())
 
-test = n / n
+test = n - n
 print(test)
