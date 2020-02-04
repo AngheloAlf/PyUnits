@@ -6,46 +6,46 @@ NumberType = Union[int, float]
 from . import BaseQuantities
 
 
-def MeterUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def meterUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.LengthUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
-def CentimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+def centimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
     return MeterUnit(value, prefix="c", exp10=exp10, priority=priority)
-def MillimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+def millimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
     return MeterUnit(value, prefix="m", exp10=exp10, priority=priority)
-def KilometerUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+def kilometerUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
     return MeterUnit(value, prefix="k", exp10=exp10, priority=priority)
 
 
-def GramUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def gramUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.MassUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
-def KilogramUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return GramUnit(value, prefix="k", exp10=exp10, priority=priority)
+def kilogramUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+    return gramUnit(value, prefix="k", exp10=exp10, priority=priority)
 
 
-def KelvinUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def kelvinUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.TemperatureUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
 
-def SecondUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def secondUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.TimeUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
-def MinuteUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return SecondUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
-def HourUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return MinuteUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
-def DayUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return HourUnit(value*24, prefix=prefix, exp10=exp10, priority=priority)
+def minuteUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+    return secondUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
+def hourUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+    return minuteUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
+def dayUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+    return hourUnit(value*24, prefix=prefix, exp10=exp10, priority=priority)
 
 
-def MolUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def molUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.SubstanceUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
 
-def AmpereUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def ampereUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.ElectricCurrentUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
 
-def CandelaUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+def candelaUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
     return BaseQuantities.LuminousIntensityUnit(value, prefix=prefix, exp10=exp10, priority=priority)

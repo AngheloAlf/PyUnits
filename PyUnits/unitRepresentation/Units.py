@@ -120,7 +120,6 @@ class RepresentableUnit(ABC):
         return CombinationUnits(other, self, divide=True)
 
 
-
 class BaseUnit(RepresentableUnit):
     def __init__(self, value: NumberType, prefix: str, exp10: int, priority: Optional[bool], default_prefix: str, unit: str):
         assert(SIPrefixes.isValidPrefix(prefix))
