@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional, List, Tuple
 from collections import Counter
-
-from Prefixes import magnitudeFactor, isValidPrefix
-
+from typing import Union, Optional, List, Tuple
 NumberType = Union[int, float]
+
+from ..prefixes import SIPrefixes
+
 
 class RepresentableUnit(ABC):
     def copy(self):
@@ -123,8 +123,8 @@ class RepresentableUnit(ABC):
 
 class BaseUnit(RepresentableUnit):
     def __init__(self, value: NumberType, prefix: str, exp10: int, priority: Optional[bool], default_prefix: str, unit: str):
-        assert(isValidPrefix(prefix))
-        assert(isValidPrefix(default_prefix))
+        assert(SIPrefixes.isValidPrefix(prefix))
+        assert(SIPrefixes.isValidPrefix(default_prefix))
 
         self._value = value
         self._prefix = prefix
@@ -157,12 +157,12 @@ class BaseUnit(RepresentableUnit):
 
         new_pre = self._default_prefix
         if new_prefix != None:
-            assert(isValidPrefix(new_prefix))
+            assert(SIPrefixes.isValidPrefix(new_prefix))
             new_pre = new_prefix
         if use_actual_prefix:
             new_pre = self._prefix
 
-        factor = 10**(self._exp10 + magnitudeFactor(self._prefix, new_pre))
+        factor = 10**(self._exp10 + SIPrefixes.magnitudeFactor(self._prefix, new_pre))
         result = self._value * factor
         return result
 
@@ -234,63 +234,6 @@ class BaseUnit(RepresentableUnit):
 
         right, left, prefix, exp10, priority = self._dataForAddsAndSubs(other)
         return self.instanceChild(left - right, prefix=prefix, exp10=exp10, priority=priority)
-
-
-class DimensionLessUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="_")
-
-    def getClass(self):
-        return DimensionLessUnit
-
-class LengthUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="m")
-
-    def getClass(self):
-        return LengthUnit
-
-class MassUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="k", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="k", unit="g")
-
-    def getClass(self):
-        return MassUnit
-
-class TemperatureUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="K")
-
-    def getClass(self):
-        return TemperatureUnit
-
-class TimeUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="s")
-
-    def getClass(self):
-        return TimeUnit
-
-class SubstanceUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="mol")
-
-    def getClass(self):
-        return SubstanceUnit
-
-class ElectricCurrentUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="A")
-
-    def getClass(self):
-        return ElectricCurrentUnit
-
-class LuminousIntensityUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="cd")
-
-    def getClass(self):
-        return LuminousIntensityUnit
 
 
 class CombinationUnits(RepresentableUnit):
@@ -607,16 +550,3 @@ class CombinationUnits(RepresentableUnit):
         result._denom_scalar = left._denom_scalar * right._denom_scalar
 
         return result
-
-
-a = LengthUnit(15)
-b = MassUnit(8)
-c = TimeUnit(2)
-
-n = a*b/(c*c)
-
-# print(a, a.value())
-# print(n, n.value())
-
-test = n - n
-print(n/n)
