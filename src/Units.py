@@ -42,6 +42,9 @@ class RepresentableUnit(ABC):
     def baseUnitStr(self) -> str:
         num_units, denom_units = self.baseUnit()
 
+        if len(num_units) == 0 and len(denom_units) == 0:
+            return ""
+
         num_unit = "1"
         if len(num_units) > 0:
             num_unit = "*".join(num_units)
@@ -55,6 +58,9 @@ class RepresentableUnit(ABC):
 
     def unitWithPrefixStr(self) -> str:
         num_units, denom_units = self.unitWithPrefix()
+
+        if len(num_units) == 0 and len(denom_units) == 0:
+            return ""
 
         num_unit = "1"
         if len(num_units) > 0:
@@ -256,7 +262,7 @@ class LengthUnit(BaseUnit):
         return LengthUnit
 
 class MassUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
+    def __init__(self, value: NumberType, *, prefix: str="k", exp10: int=0, priority: Optional[bool]=None):
         super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="k", unit="g")
 
     def getClass(self):
@@ -300,8 +306,10 @@ class LuminousIntensityUnit(BaseUnit):
 
 class CombinationUnits(RepresentableUnit):
     def __new__(cls, left, right, *, divide: bool):
-        # at most one is a number
-        assert(not (isinstance(left, (int, float)) and isinstance(right, (int, float))))
+        # at most one is a number or None
+        # assert(not (isinstance(left, (int, float, type(None))) and isinstance(right, (int, float, type(None)))))
+        if isinstance(left, (int, float, type(None))) and isinstance(right, (int, float, type(None))):
+            raise TypeError("At least one parameter must be an unit or a combination of units.")
 
         if isinstance(left, (int, float)):
             if left == 1:
@@ -367,9 +375,13 @@ class CombinationUnits(RepresentableUnit):
                 result.mulByNumber(right._num_scalar)
                 result.divByNumber(right._denom_scalar)
 
+            num_units, denom_units = result.baseUnit()
+            if len(num_units) == 0 and len(denom_units) == 0:
+                return result.value()
+
             return result
 
-        return object.__new__(cls)
+        return super().__new__(cls)
 
 
     def __init__(self, left, right, *, divide: bool):
@@ -497,7 +509,7 @@ class CombinationUnits(RepresentableUnit):
         copy = self.copy()
         for i in range(len(copy._numerator)):
             val = copy._numerator[i]
-            if val.baseUnit() == basic_unit:
+            if val.baseUnit()[0][0] == basic_unit:
                 del copy._numerator[i]
                 return (copy, val)
         return (copy, None)
@@ -506,7 +518,7 @@ class CombinationUnits(RepresentableUnit):
         copy = self.copy()
         for i in range(len(copy._denominator)):
             val = copy._denominator[i]
-            if val.baseUnit() == basic_unit:
+            if val.baseUnit()[0][0] == basic_unit:
                 del copy._denominator[i]
                 return (copy, val)
         return (copy, None)
@@ -605,5 +617,5 @@ n = a*b/(c*c)
 print(a, a.value())
 print(n, n.value())
 
-test = n - n
-print(test, test.value())
+test = n / n
+print(test)
