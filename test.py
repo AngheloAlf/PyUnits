@@ -18,3 +18,10 @@ print(ImperialUnits.fahrenheitUnit(68))
 print(SIDerivedUnits.hertzUnit(20))
 print(SIDerivedUnits.newtonUnit(30))
 
+print(SIUnits.litreUnit(4000))
+
+
+print(ImperialUnits.mileUnit(25))
+print(ImperialUnits.perchUnit(10))
+print(ImperialUnits.roodUnit(1))
+print(ImperialUnits.roodUnit(1).value())

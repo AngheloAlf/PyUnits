@@ -10,11 +10,19 @@ def meterUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Opti
     return BaseQuantities.LengthUnit(value, prefix=prefix, exp10=exp10, priority=priority)
 
 def centimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return MeterUnit(value, prefix="c", exp10=exp10, priority=priority)
+    return meterUnit(value, prefix="c", exp10=exp10, priority=priority)
 def millimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return MeterUnit(value, prefix="m", exp10=exp10, priority=priority)
+    return meterUnit(value, prefix="m", exp10=exp10, priority=priority)
 def kilometerUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return MeterUnit(value, prefix="k", exp10=exp10, priority=priority)
+    return meterUnit(value, prefix="k", exp10=exp10, priority=priority)
+
+def hectareUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+    result = meterUnit(value, exp10=exp10, priority=priority) * meterUnit(1, exp10=4, priority=priority)
+    return result
+def litreUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+    result = meterUnit(value, priority=priority) * meterUnit(1, exp10=exp10, priority=priority)
+    result *= meterUnit(1, exp10=-3, priority=priority)
+    return result
 
 
 def gramUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
@@ -22,6 +30,9 @@ def gramUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optio
 
 def kilogramUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
     return gramUnit(value, prefix="k", exp10=exp10, priority=priority)
+
+def tonneUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
+    return kilogramUnit(value, exp10=exp10+3, priority=priority)
 
 
 def kelvinUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
