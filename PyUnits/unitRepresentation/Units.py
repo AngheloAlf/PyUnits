@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from numbers import Number
+from numbers import Number, Complex
 from math import trunc, floor, ceil
 from collections import Counter, Iterable
 from typing import List, Tuple, Optional, Union
 
+from ..TypesHelper import Number_t
 from ..prefixes import SIPrefixes
 
 
@@ -50,6 +51,8 @@ class RepresentableUnit(ABC):
 
     @abstractmethod
     def __mul__(self, other):
+        if isinstance(other, RepresentableUnit):
+            return UnitsFraction(self, other, divide=False)
         if isinstance(other, Number):
             return ValueUnits(other, self)
         if other is None:
@@ -58,6 +61,8 @@ class RepresentableUnit(ABC):
 
     @abstractmethod
     def __rmul__(self, other):
+        if isinstance(other, RepresentableUnit):
+            return UnitsFraction(other, self, divide=False)
         if isinstance(other, Number):
             return ValueUnits(other, self)
         if other is None:
@@ -67,6 +72,8 @@ class RepresentableUnit(ABC):
 
     @abstractmethod
     def __truediv__(self, other):
+        if isinstance(other, RepresentableUnit):
+            return UnitsFraction(self, other, divide=True)
         if isinstance(other, Number):
             return ValueUnits(1/other, self)
         if other is None:
@@ -75,6 +82,8 @@ class RepresentableUnit(ABC):
 
     @abstractmethod
     def __rtruediv__(self, other):
+        if isinstance(other, RepresentableUnit):
+            return UnitsFraction(other, self, divide=True)
         if isinstance(other, Number):
             return ValueUnits(other, UnitsFraction(None, self, divide=True))
         if other is None:
@@ -83,7 +92,7 @@ class RepresentableUnit(ABC):
 
 
     @abstractmethod
-    def __pow__(self, other: Number):
+    def __pow__(self, other: Number_t):
         return NotImplemented
 
 
@@ -92,28 +101,33 @@ class Unit(RepresentableUnit):
     # attributes:
     # self._unit: str
     # self._defaultPrefix: str
-    # self._power: Number
+    # self._power: Number_t
 
     # inmutable
 
-    def __new__(cls, unit: str, defaultPrefix: str="", *, power: Number=1):
-        assert(isinstance(unit, str))
-        assert(isinstance(defaultPrefix, str))
-        assert(isinstance(power, Number))
-        assert(SIPrefixes.isValidPrefix(defaultPrefix))
+    def __new__(cls, unit: str, defaultPrefix: str="", *, power: Number_t=1):
         self = super(Unit, cls).__new__(cls)
+
+        if not isinstance(unit, str):
+            raise TypeError(f"Expected type str for 'unit', not {type(unit).__name__}.")
+        if not isinstance(defaultPrefix, str):
+            raise TypeError(f"Expected type str for 'defaultPrefix', not {type(defaultPrefix).__name__}.")
+        if not SIPrefixes.isValidPrefix(defaultPrefix):
+            raise TypeError(f"Invalid prefix: {defaultPrefix}.")
+        if not isinstance(power, Number):
+            raise TypeError(f"Expected a numeral type for power, not {type(power).__name__}.")
 
         if power == 0:
             return 1
-        elif power < 0:
+        elif not isinstance(power, Complex) and power < 0:
             return UnitsFraction(None, Unit(unit, defaultPrefix, power=-power), divide=True)
 
         return self
 
-    def __init__(self, unit: str, defaultPrefix: str="", *, power: Number=1):
+    def __init__(self, unit: str, defaultPrefix: str="", *, power: Number_t=1):
         self._unit: str = unit
         self._defaultPrefix: str = defaultPrefix
-        self._power: Number = power
+        self._power: Number_t = power
 
     def __hash__(self) -> int:
         return hash(str(self))
@@ -133,7 +147,7 @@ class Unit(RepresentableUnit):
         return self._defaultPrefix
 
     @property
-    def power(self) -> Number:
+    def power(self) -> Number_t:
         return self._power
 
 
@@ -180,17 +194,11 @@ class Unit(RepresentableUnit):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=self._power+other._power)
 
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(self, other, divide=False)
-
         return super().__mul__(other)
 
     def __rmul__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=other._power+self._power)
-
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(other, self, divide=False)
 
         return super().__rmul__(other)
 
@@ -199,22 +207,16 @@ class Unit(RepresentableUnit):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=self._power-other._power)
 
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(self, other, divide=True)
-
         return super().__truediv__(other)
 
     def __rtruediv__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=other._power-self._power)
 
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(other, self, divide=True)
-
         return super().__rtruediv__(other)
 
 
-    def __pow__(self, other: Number) -> Unit:
+    def __pow__(self, other: Number_t) -> Unit:
         if isinstance(other, Number):
             if other == 1:
                 return self
@@ -233,11 +235,15 @@ class UnitsFraction(RepresentableUnit):
 
     # inmutable
 
-    def __new__(cls, left: Union[RepresentableUnit, Iterable, None], right: Union[RepresentableUnit, Iterable, None]=None, *, divide: bool):
-        assert(isinstance(left, (RepresentableUnit, Iterable, type(None))))
-        assert(isinstance(right, (RepresentableUnit, Iterable, type(None))))
-        assert(isinstance(divide, bool))
+    def __new__(cls, left: Union[RepresentableUnit, Iterable, None], right: Optional[RepresentableUnit]=None, *, divide: bool):
         self = super(UnitsFraction, cls).__new__(cls)
+
+        if not isinstance(left, (RepresentableUnit, Iterable, type(None))):
+            raise TypeError("Unexpected type: " + type(left).__name__)
+        if not isinstance(right, (RepresentableUnit, type(None))):
+            raise TypeError("Unexpected type: " + type(right).__name__)
+        if not isinstance(divide, bool):
+            raise TypeError("Unexpected type: " + type(divide).__name__)
 
         self._numerator = list()
         self._denominator = list()
@@ -249,9 +255,7 @@ class UnitsFraction(RepresentableUnit):
             self._numerator = list(leftNum)
             self._denominator = list(leftDen)
 
-        if isinstance(right, Iterable):
-            raise TypeError("`right` parameter can't be Iterable.")
-        elif right is not None:
+        if right is not None:
             rightNum, rightDen = right.getUnitsLists()
             if divide:
                 rightNum, rightDen = rightDen, rightNum
@@ -261,7 +265,7 @@ class UnitsFraction(RepresentableUnit):
                 if den is not None:
                     self._denominator.remove(den)
                     unit = num/den
-                    if isinstance(unit, (Unit, UnitsFraction)):
+                    if isinstance(unit, RepresentableUnit):
                         numList, denList = unit.getUnitsLists()
                         self._numerator += numList
                         self._denominator += denList
@@ -271,7 +275,7 @@ class UnitsFraction(RepresentableUnit):
                     if num2 is not None:
                         self._numerator.remove(num2)
                         unit = num*num2
-                        if isinstance(unit, (Unit, UnitsFraction)):
+                        if isinstance(unit, RepresentableUnit):
                             numList, denList = unit.getUnitsLists()
                             self._numerator += numList
                             self._denominator += denList
@@ -283,7 +287,7 @@ class UnitsFraction(RepresentableUnit):
                 if num is not None:
                     self._numerator.remove(num)
                     unit = num/den
-                    if isinstance(unit, (Unit, UnitsFraction)):
+                    if isinstance(unit, RepresentableUnit):
                         numList, denList = unit.getUnitsLists()
                         self._numerator += numList
                         self._denominator += denList
@@ -292,7 +296,7 @@ class UnitsFraction(RepresentableUnit):
                     if den2 is not None:
                         self._denominator.remove(den2)
                         unit = den*den2
-                        if isinstance(unit, (Unit, UnitsFraction)):
+                        if isinstance(unit, RepresentableUnit):
                             numList, denList = unit.getUnitsLists()
                             self._numerator += denList
                             self._denominator += numList
@@ -369,32 +373,20 @@ class UnitsFraction(RepresentableUnit):
 
 
     def __mul__(self, other):
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(self, other, divide=False)
-
         return super().__mul__(other)
 
     def __rmul__(self, other):
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(other, self, divide=False)
-
         return super().__rmul__(other)
 
 
     def __truediv__(self, other):
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(self, other, divide=True)
-
         return super().__truediv__(other)
 
     def __rtruediv__(self, other):
-        if isinstance(other, (Unit, UnitsFraction)):
-            return UnitsFraction(other, self, divide=True)
-
         return super().__rtruediv__(other)
 
 
-    def __pow__(self, other: Number) -> Unit:
+    def __pow__(self, other: Number_t) -> Unit:
         if isinstance(other, Number):
             numerator = list()
             denominator = list()
@@ -432,7 +424,7 @@ class RepresentableValueUnit(ABC):
 
     @property
     @abstractmethod
-    def value(self) -> Number:
+    def value(self) -> Number_t:
         pass
 
     @property
@@ -499,89 +491,105 @@ class RepresentableValueUnit(ABC):
 
     @abstractmethod
     def __eq__(self, other) -> bool:
-        pass
+        return False
     @abstractmethod
     def __ne__(self, other) -> bool:
-        pass
+        return False
     @abstractmethod
     def __lt__(self, other) -> bool:
-        pass
+        return False
     @abstractmethod
     def __le__(self, other) -> bool:
-        pass
+        return False
     @abstractmethod
     def __gt__(self, other) -> bool:
-        pass
+        return False
     @abstractmethod
     def __ge__(self, other) -> bool:
-        pass
+        return False
 
 
     @abstractmethod
     def __add__(self, other):
-        pass
+        return NotImplemented
 
     @abstractmethod
     def __radd__(self, other):
-        pass
+        return NotImplemented
 
 
     @abstractmethod
     def __sub__(self, other):
-        pass
+        return NotImplemented
 
     @abstractmethod
     def __rsub__(self, other):
-        pass
+        return NotImplemented
 
 
     @abstractmethod
     def __mul__(self, other):
-        pass
+        if isinstance(other, Number):
+            value = self.value * other
+            return ValueUnits(value, self.unit, self.exp10)
+        return NotImplemented
 
     @abstractmethod
     def __rmul__(self, other):
-        pass
+        if isinstance(other, Number):
+            value = other * self.value
+            return ValueUnits(value, self.unit, self.exp10)
+        return NotImplemented
 
 
     @abstractmethod
     def __truediv__(self, other):
-        pass
+        if isinstance(other, Number):
+            value = self.value / other
+            return ValueUnits(value, self.unit, self.exp10)
+        return NotImplemented
 
     @abstractmethod
     def __rtruediv__(self, other):
-        pass
+        if isinstance(other, Number):
+            value = other / self.value
+            unit = None / self.unit
+            exp10 = 0 - self.exp10
+            return ValueUnits(value, unit, exp10)
+        return NotImplemented
 
 
     @abstractmethod
-    def __pow__(self, other: Number):
-        pass
+    def __pow__(self, other: Number_t):
+        return NotImplemented
 
 
 class ValueUnits(RepresentableValueUnit):
 
     # attributes:
-    # self._value: Number
+    # self._value: Number_t
     # self._unit: RepresentableUnit
     # self._exp10: int
 
     # inmutable
 
-    def __new__(cls, value: Number, unit: RepresentableUnit, exp10: int=0):
-        assert(isinstance(value, Number))
-        assert(isinstance(unit, RepresentableUnit))
+    def __new__(cls, value: Number_t, unit: RepresentableUnit, exp10: int=0):
         self = super(ValueUnits, cls).__new__(cls)
+
+        if not isinstance(value, Number):
+            raise TypeError("Parameter `value` must be a Number, not an " + type(value).__name__ + ".")
+        if not isinstance(unit, RepresentableUnit):
+            raise TypeError("Parameter `unit` must be an unit type, not an " + type(unit).__name__ + ".")
+        if not isinstance(exp10, int):
+            raise TypeError("Parameter `exp10` must be an int, not an " + type(exp10).__name__ + ".")
 
         if unit == 1:
             return value*(10**exp10)
 
-        if not isinstance(exp10, int):
-            raise TypeError("Parameter `exp10` must be an int, not an " + type(exp10) + ".")
-
         return self
 
-    def __init__(self, value: Number, unit: RepresentableUnit, exp10: int=0):
-        self._value: Number = value
+    def __init__(self, value: Number_t, unit: RepresentableUnit, exp10: int=0):
+        self._value: Number_t = value
         self._unit: RepresentableUnit = unit
         self._exp10: int = exp10
 
@@ -597,7 +605,7 @@ class ValueUnits(RepresentableValueUnit):
 
 
     @property
-    def value(self) -> Number:
+    def value(self) -> Number_t:
         return self._value
 
     @property
@@ -664,7 +672,7 @@ class ValueUnits(RepresentableValueUnit):
     def __le__(self, other) -> bool:
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                if self._value*(10**self._exp10) <= other._value*(10**other._exp10):
+                if self.value*(10**self.exp10) <= other.value*(10**other.exp10):
                     return True
         return False
     def __gt__(self, other) -> bool:
@@ -683,7 +691,7 @@ class ValueUnits(RepresentableValueUnit):
                 else:
                     value = self._value + other._value*10**(other._exp10-self._exp10)
                 return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__add__(other)
 
     def __radd__(self, other):
         if isinstance(other, RepresentableValueUnit):
@@ -695,7 +703,7 @@ class ValueUnits(RepresentableValueUnit):
                 else:
                     value = self._value + other._value*10**(other._exp10-self._exp10)
                 return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__radd__(other)
 
 
     def __sub__(self, other):
@@ -708,7 +716,7 @@ class ValueUnits(RepresentableValueUnit):
                 else:
                     value = self._value - other._value*10**(other._exp10-self._exp10)
                 return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__sub__(other)
 
     def __rsub__(self, other):
         if isinstance(other, RepresentableValueUnit):
@@ -720,63 +728,47 @@ class ValueUnits(RepresentableValueUnit):
                 else:
                     value = other._value*10**(other._exp10-self._exp10) - self._value
                 return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__rsub__(other)
 
 
     def __mul__(self, other):
-        if isinstance(other, Number):
-            value = self._value * other
-            return ValueUnits(value, self._unit, self._exp10)
-        if isinstance(other, ValueUnits):
+        if isinstance(other, RepresentableValueUnit):
             value = self._value * other._value
             unit = self._unit * other._unit
             exp10 = self._exp10 + other._exp10
             return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__mul__(other)
 
     def __rmul__(self, other):
-        if isinstance(other, Number):
-            value = self._value * other
-            return ValueUnits(value, self._value, self._exp10)
-        if isinstance(other, ValueUnits):
+        if isinstance(other, RepresentableValueUnit):
             value = self._value * other._value
             unit = self._unit * other._unit
             exp10 = self._exp10 + other._exp10
             return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__rmul__(other)
 
 
     def __truediv__(self, other):
-        if isinstance(other, Number):
-            value = self._value / other
-            return ValueUnits(value, self._value, self._exp10)
-        if isinstance(other, ValueUnits):
+        if isinstance(other, RepresentableValueUnit):
             value = self._value / other._value
             unit = self._unit / other._unit
             exp10 = self._exp10 - other._exp10
             return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__truediv__(other)
 
     def __rtruediv__(self, other):
-        if isinstance(other, Number):
-            value = other / self._value
-            unit = None / self._unit
-            exp10 = 0 - self._exp10
-            return ValueUnits(value, unit, exp10)
-        if isinstance(other, ValueUnits):
+        if isinstance(other, RepresentableValueUnit):
             value = other._value / self._value
             unit = other._unit / self._unit
             exp10 = other._exp10 - self._exp10
             return ValueUnits(value, unit, exp10)
-        return NotImplemented
+        return super().__rtruediv__(other)
 
 
-    def __pow__(self, other: Number):
+    def __pow__(self, other: Number_t):
         if isinstance(other, Number):
             value = self._value ** other
             unit = self._unit ** other
             exp10 = self._exp10 * other
             return ValueUnits(value, unit, exp10)
-
-        return NotImplemented
-
+        return super().__pow__(other)
