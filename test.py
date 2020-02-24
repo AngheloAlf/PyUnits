@@ -6,8 +6,8 @@ c = SIUnits.secondUnit(2)
 
 n = a*b/(c*c)
 print(n)
-# print(a, a.value())
-# print(n, n.value())
+print(a, float(a))
+print(n, float(n))
 
 test = n + n
 print(test)
@@ -24,4 +24,6 @@ print(SIUnits.litreUnit(4000))
 print(ImperialUnits.mileUnit(25))
 print(ImperialUnits.perchUnit(10))
 print(ImperialUnits.roodUnit(1))
-print(ImperialUnits.roodUnit(1).value())
+print(float(ImperialUnits.roodUnit(1)))
+
+print(SIUnits.meterUnit(2) - SIUnits.centimeterUnit(1))

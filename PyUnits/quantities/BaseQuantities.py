@@ -1,63 +1,54 @@
 from __future__ import annotations
 
-from typing import Union, Optional
-NumberType = Union[int, float]
+from numbers import Number
 
-from ..unitRepresentation.Units import BaseUnit
+from ..unitRepresentation.Units import Unit
 
 
-class DimensionLessUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="_")
+class DimensionLessUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(DimensionLessUnit, cls).__new__(cls, unit="_", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="_", defaultPrefix="", power=power)
 
-    def getClass(self):
-        return DimensionLessUnit
+class LengthUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(LengthUnit, cls).__new__(cls, unit="m", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="m", defaultPrefix="", power=power)
 
-class LengthUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="m")
+class MassUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(MassUnit, cls).__new__(cls, unit="g", defaultPrefix="k", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="g", defaultPrefix="k", power=power)
 
-    def getClass(self):
-        return LengthUnit
+class TemperatureUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(TemperatureUnit, cls).__new__(cls, unit="K", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="K", defaultPrefix="", power=power)
 
-class MassUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="k", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="k", unit="g")
+class TimeUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(TimeUnit, cls).__new__(cls, unit="s", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="s", defaultPrefix="", power=power)
 
-    def getClass(self):
-        return MassUnit
+class SubstanceUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(SubstanceUnit, cls).__new__(cls, unit="mol", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="mol", defaultPrefix="", power=power)
 
-class TemperatureUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="K")
+class ElectricCurrentUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(ElectricCurrentUnit, cls).__new__(cls, unit="A", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="A", defaultPrefix="", power=power)
 
-    def getClass(self):
-        return TemperatureUnit
-
-class TimeUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="s")
-
-    def getClass(self):
-        return TimeUnit
-
-class SubstanceUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="mol")
-
-    def getClass(self):
-        return SubstanceUnit
-
-class ElectricCurrentUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="A")
-
-    def getClass(self):
-        return ElectricCurrentUnit
-
-class LuminousIntensityUnit(BaseUnit):
-    def __init__(self, value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-        super().__init__(value, prefix=prefix, exp10=exp10, priority=priority, default_prefix="", unit="cd")
-
-    def getClass(self):
-        return LuminousIntensityUnit
+class LuminousIntensityUnit(Unit):
+    def __new__(cls, *, power: Number=1):
+        return super(LuminousIntensityUnit, cls).__new__(cls, unit="cd", defaultPrefix="", power=power)
+    def __init__(self, *, power: Number=1):
+        super().__init__(unit="cd", defaultPrefix="", power=power)

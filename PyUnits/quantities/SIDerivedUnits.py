@@ -1,106 +1,81 @@
 from __future__ import annotations
 
-from typing import Union, Optional
-NumberType = Union[int, float]
+from numbers import Number
 
 from . import SIUnits
 from ..prefixes import SIPrefixes
 
 
-def celsiusUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    return SIUnits.kelvinUnit(value*(10**exp) + 273.15, prefix="", exp10=0, priority=priority)
+def celsiusUnit(value: Number, *, power: Number=1):
+    return SIUnits.kelvinUnit(value + 273.15, power=power)
 
-def hertzUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return 1/SIUnits.secondUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def hertzUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    return value/SIUnits.secondUnit(1, exp10=-exp, power=power)
 
-def newtonUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result *= value
+def newtonUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, power=power) * SIUnits.meterUnit(1, exp10=exp, power=power)
+    result /= SIUnits.secondUnit(1, power=2*power)
     return result
 
-def pascalUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) / SIUnits.meterUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result *= value
+def pascalUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, exp10=exp, power=power) / SIUnits.meterUnit(1, power=power)
+    result /= SIUnits.secondUnit(1, power=2*power)
     return result
 
-def jouleUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result *= value
+def jouleUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, power=power) * SIUnits.meterUnit(1, exp10=exp, power=2*power)
+    result /= SIUnits.secondUnit(1, power=2*power)
     return result
 
-def wattUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result *= value
+def wattUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, power=power) * SIUnits.meterUnit(1, exp10=exp, power=2*power)
+    result /= SIUnits.secondUnit(1, power=3*power)
     return result
 
-def coulombUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.secondUnit(1, priority=priority) * SIUnits.ampereUnit(1, priority=priority)
-    result *= value
+def coulombUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.secondUnit(value, power=power) * SIUnits.ampereUnit(1, exp10=exp, power=power)
     return result
 
-def voltUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority) * SIUnits.meterUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority) * SIUnits.ampereUnit(1, priority=priority)
-    result *= value
+def voltUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, power=power) * SIUnits.meterUnit(1, exp10=exp, power=2*power)
+    result /= SIUnits.secondUnit(1, power=3*power) * SIUnits.ampereUnit(1, power=power)
     return result
 
-def faradUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = coulombUnit(1, priority=priority) / voltUnit(1, priority=priority)
-    result *= value
+def faradUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = coulombUnit(value, exp10=exp, power=power) / voltUnit(1, power=power)
     return result
 
-def ohmUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = voltUnit(1, priority=priority) / SIUnits.ampereUnit(1, priority=priority)
-    result *= value
+def ohmUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = voltUnit(value, exp10=exp, power=power) / SIUnits.ampereUnit(1, power=power)
     return result
 
-def siemensUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = 1 / ohmUnit(1, priority=priority)
-    result *= value
+def siemensUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = value / ohmUnit(1, exp10=-exp, power=power)
     return result
 
-def weberUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = jouleUnit(1, priority=priority) / SIUnits.ampereUnit(1, priority=priority)
-    result *= value
+def weberUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = jouleUnit(value, exp10=exp, power=power) / SIUnits.ampereUnit(1, power=power)
     return result
 
-def teslaUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = SIUnits.kilogramUnit(1, priority=priority) / SIUnits.ampereUnit(1, priority=priority)
-    result /= SIUnits.secondUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result *= value
+def teslaUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = SIUnits.kilogramUnit(value, exp10=exp, power=power) / SIUnits.ampereUnit(1, power=power)
+    result /= SIUnits.secondUnit(1, power=2*power)
     return result
 
-def henryUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    exp = SIPrefixes.magnitudeFactor(prefix, "") + exp10
-    value = value*(10**exp)
-    result = voltUnit(1, priority=priority) * SIUnits.secondUnit(1, priority=priority)
-    result /= SIUnits.ampereUnit(1, priority=priority)
-    result *= value
+def henryUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    exp = SIPrefixes.magnitudeFactor(prefix, "")*power + exp10
+    result = voltUnit(value, exp10=power, power=power) * SIUnits.secondUnit(1, power=power)
+    result /= SIUnits.ampereUnit(1, power=power)
     return result

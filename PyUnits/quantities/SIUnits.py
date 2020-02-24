@@ -1,62 +1,75 @@
 from __future__ import annotations
 
-from typing import Union, Optional
-NumberType = Union[int, float]
+from numbers import Number
 
 from . import BaseQuantities
+from ..unitRepresentation import Units
+from ..prefixes import SIPrefixes
 
 
-def meterUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.LengthUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def meterUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.LengthUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
 
-def centimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return meterUnit(value, prefix="c", exp10=exp10, priority=priority)
-def millimeterUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return meterUnit(value, prefix="m", exp10=exp10, priority=priority)
-def kilometerUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return meterUnit(value, prefix="k", exp10=exp10, priority=priority)
+def centimeterUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return meterUnit(value, exp10=exp10, prefix="c", power=power)
+def millimeterUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return meterUnit(value, exp10=exp10, prefix="m", power=power)
+def kilometerUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return meterUnit(value, exp10=exp10, prefix="k", power=power)
 
-def hectareUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    result = meterUnit(value, exp10=exp10, priority=priority) * meterUnit(1, exp10=4, priority=priority)
+def hectareUnit(value: Number, *, exp10: int=0):
+    result = meterUnit(value, exp10=exp10+4, power=2)
     return result
-def litreUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    result = meterUnit(value, priority=priority) * meterUnit(1, exp10=exp10, priority=priority)
-    result *= meterUnit(1, exp10=-3, priority=priority)
+def litreUnit(value: Number, *, exp10: int=0):
+    result = meterUnit(value, exp10=exp10-3, power=3)
     return result
 
 
-def gramUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.MassUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def gramUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.MassUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
 
-def kilogramUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return gramUnit(value, prefix="k", exp10=exp10, priority=priority)
-
-def tonneUnit(value: NumberType, *, exp10: int=0, priority: Optional[bool]=None):
-    return kilogramUnit(value, exp10=exp10+3, priority=priority)
-
-
-def kelvinUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.TemperatureUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def kilogramUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return gramUnit(value, prefix="k", exp10=exp10, power=power)
+def tonneUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return kilogramUnit(value, exp10=exp10+3, power=power)
 
 
-def secondUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.TimeUnit(value, prefix=prefix, exp10=exp10, priority=priority)
-
-def minuteUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return secondUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
-def hourUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return minuteUnit(value*60, prefix=prefix, exp10=exp10, priority=priority)
-def dayUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return hourUnit(value*24, prefix=prefix, exp10=exp10, priority=priority)
+def kelvinUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.TemperatureUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
 
 
-def molUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.SubstanceUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def secondUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.TimeUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
+
+def minuteUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return secondUnit(value*60, exp10=exp10, power=power)
+def hourUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return minuteUnit(value*60, exp10=exp10, power=power)
+def dayUnit(value: Number, *, exp10: int=0, power: Number=1):
+    return hourUnit(value*24, exp10=exp10, power=power)
 
 
-def ampereUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.ElectricCurrentUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def molUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.SubstanceUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
 
 
-def candelaUnit(value: NumberType, *, prefix: str="", exp10: int=0, priority: Optional[bool]=None):
-    return BaseQuantities.LuminousIntensityUnit(value, prefix=prefix, exp10=exp10, priority=priority)
+def ampereUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.ElectricCurrentUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
+
+
+def candelaUnit(value: Number, *, exp10: int=0, prefix: str="", power: Number=1):
+    unit = BaseQuantities.LuminousIntensityUnit(power=power)
+    exp10 += SIPrefixes.magnitudeFactor(prefix, unit.defaultPrefix)*power
+    return Units.ValueUnits(value, unit, exp10)
