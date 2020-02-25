@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from numbers import Number, Complex
 from math import trunc, floor, ceil
 from collections import Counter, Iterable
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, overload
 
 from ..TypesHelper import Number_t
 from ..prefixes import SIPrefixes
@@ -25,31 +25,43 @@ class RepresentableUnit(ABC):
 
 
     @abstractmethod
+    def __hash__(self) -> int:
+        raise NotImplementedError()
+    @abstractmethod
     def __str__(self) -> str:
-        pass
-
+        raise NotImplementedError()
     def __repr__(self) -> str:
         return self.__str__()
 
 
+    @property
     @abstractmethod
-    def getUnitsLists(self) -> Tuple[UnitsList_t, UnitsList_t]:
-        pass
+    def numeratorUnits(self) -> List[Unit]:
+        raise NotImplementedError()
+    @property
+    @abstractmethod
+    def denominatorUnits(self) -> List[Unit]:
+        raise NotImplementedError()
+
 
     @abstractmethod
-    def hasSameUnit(self, other) -> bool:
-        pass
+    def hasSameUnit(self, other: RepresentableUnit) -> bool:
+        raise NotImplementedError()
 
 
     @abstractmethod
     def __eq__(self, other) -> bool:
-        pass
-    @abstractmethod
+        return False
     def __ne__(self, other) -> bool:
-        pass
+        return not self.__eq__(other)
 
 
-    @abstractmethod
+    @overload
+    def __mul__(self, other: RepresentableUnit) -> UnitsFraction: ...
+    @overload
+    def __mul__(self, other: Number_t) -> ValueUnits: ...
+    @overload
+    def __mul__(self, other: None) -> RepresentableUnit: ...
     def __mul__(self, other):
         if isinstance(other, RepresentableUnit):
             return UnitsFraction(self, other, divide=False)
@@ -59,7 +71,12 @@ class RepresentableUnit(ABC):
             return self
         return NotImplemented
 
-    @abstractmethod
+    @overload
+    def __rmul__(self, other: RepresentableUnit) -> UnitsFraction: ...
+    @overload
+    def __rmul__(self, other: Number_t) -> ValueUnits: ...
+    @overload
+    def __rmul__(self, other: None) -> RepresentableUnit: ...
     def __rmul__(self, other):
         if isinstance(other, RepresentableUnit):
             return UnitsFraction(other, self, divide=False)
@@ -70,7 +87,12 @@ class RepresentableUnit(ABC):
         return NotImplemented
 
 
-    @abstractmethod
+    @overload
+    def __truediv__(self, other: RepresentableUnit) -> UnitsFraction: ...
+    @overload
+    def __truediv__(self, other: Number_t) -> ValueUnits: ...
+    @overload
+    def __truediv__(self, other: None) -> RepresentableUnit: ...
     def __truediv__(self, other):
         if isinstance(other, RepresentableUnit):
             return UnitsFraction(self, other, divide=True)
@@ -80,7 +102,12 @@ class RepresentableUnit(ABC):
             return self
         return NotImplemented
 
-    @abstractmethod
+    @overload
+    def __rtruediv__(self, other: RepresentableUnit) -> UnitsFraction: ...
+    @overload
+    def __rtruediv__(self, other: Number_t) -> ValueUnits: ...
+    @overload
+    def __rtruediv__(self, other: None) -> RepresentableUnit: ...
     def __rtruediv__(self, other):
         if isinstance(other, RepresentableUnit):
             return UnitsFraction(other, self, divide=True)
@@ -92,7 +119,7 @@ class RepresentableUnit(ABC):
 
 
     @abstractmethod
-    def __pow__(self, other: Number_t):
+    def __pow__(self, other: Number_t) -> RepresentableUnit:
         return NotImplemented
 
 
@@ -139,41 +166,46 @@ class Unit(RepresentableUnit):
 
 
     @property
+    def numeratorUnits(self) -> List[Unit]:
+        return [self]
+    @property
+    def denominatorUnits(self) -> List[Unit]:
+        return []
+    @property
     def unit(self) -> str:
         return self._unit
-
     @property
     def defaultPrefix(self) -> str:
         return self._defaultPrefix
-
     @property
     def power(self) -> Number_t:
         return self._power
 
 
-    def getUnitsLists(self) -> Tuple[UnitsList_t, UnitsList_t]:
-        return ([self], [])
-
-    def hasSameUnit(self, other) -> bool:
-        otherNum, otherDen = other.getUnitsLists()
+    def hasSameUnit(self, other: RepresentableUnit) -> bool:
+        otherNum = other.numeratorUnits
+        otherDen = other.denominatorUnits
         if len(otherDen) != 0:
             return False
         if len(otherNum) != 1:
             return False
-        return self._unit == otherNum[0]._unit and self._defaultPrefix == otherNum[0]._defaultPrefix and self._power == otherNum[0]._power
+        return self.unit == otherNum[0].unit and self.defaultPrefix == otherNum[0].defaultPrefix and self.power == otherNum[0].power
 
-    def hasSameBaseUnit(self, other) -> bool:
-        otherNum, otherDen = other.getUnitsLists()
+    def hasSameBaseUnit(self, other: RepresentableUnit) -> bool:
+        otherNum = other.numeratorUnits
+        otherDen = other.denominatorUnits
         if len(otherDen) != 0:
             return False
         if len(otherNum) != 1:
             return False
-        return self._unit == otherNum[0]._unit and self._defaultPrefix == otherNum[0]._defaultPrefix
+        return self.unit == otherNum[0].unit and self.defaultPrefix == otherNum[0].defaultPrefix
+
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Number):
-            return False
-        otherNum, otherDen = other.getUnitsLists()
+        if not isinstance(other, RepresentableUnit):
+            return super().__eq__(other)
+        otherNum = other.numeratorUnits
+        otherDen = other.denominatorUnits
         if len(otherDen) != 0:
             return False
         if len(otherNum) != 1:
@@ -193,38 +225,31 @@ class Unit(RepresentableUnit):
     def __mul__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=self._power+other._power)
-
         return super().__mul__(other)
 
     def __rmul__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=other._power+self._power)
-
         return super().__rmul__(other)
 
 
     def __truediv__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=self._power-other._power)
-
         return super().__truediv__(other)
 
     def __rtruediv__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
             return Unit(self._unit, self._defaultPrefix, power=other._power-self._power)
-
         return super().__rtruediv__(other)
 
 
-    def __pow__(self, other: Number_t) -> Unit:
+    def __pow__(self, other: Number_t) -> RepresentableUnit:
         if isinstance(other, Number):
             if other == 1:
                 return self
             return Unit(self._unit, self._defaultPrefix, power=self._power*other)
-
         return super().__pow__(other)
-
-UnitsList_t = List[Unit]
 
 
 class UnitsFraction(RepresentableUnit):
@@ -251,12 +276,12 @@ class UnitsFraction(RepresentableUnit):
         if isinstance(left, Iterable):
             self._numerator = list(left)
         elif left is not None:
-            leftNum, leftDen = left.getUnitsLists()
-            self._numerator = list(leftNum)
-            self._denominator = list(leftDen)
+            self._numerator = list(left.numeratorUnits)
+            self._denominator = list(left.denominatorUnits)
 
         if right is not None:
-            rightNum, rightDen = right.getUnitsLists()
+            rightNum = right.numeratorUnits
+            rightDen = right.denominatorUnits
             if divide:
                 rightNum, rightDen = rightDen, rightNum
 
@@ -266,9 +291,8 @@ class UnitsFraction(RepresentableUnit):
                     self._denominator.remove(den)
                     unit = num/den
                     if isinstance(unit, RepresentableUnit):
-                        numList, denList = unit.getUnitsLists()
-                        self._numerator += numList
-                        self._denominator += denList
+                        self._numerator += unit.numeratorUnits
+                        self._denominator += unit.denominatorUnits
 
                 else:
                     num2 = self.unitInNumerator(num)
@@ -276,9 +300,8 @@ class UnitsFraction(RepresentableUnit):
                         self._numerator.remove(num2)
                         unit = num*num2
                         if isinstance(unit, RepresentableUnit):
-                            numList, denList = unit.getUnitsLists()
-                            self._numerator += numList
-                            self._denominator += denList
+                            self._numerator += unit.numeratorUnits
+                            self._denominator += unit.denominatorUnits
                     else:
                         self._numerator.append(num)
 
@@ -288,18 +311,16 @@ class UnitsFraction(RepresentableUnit):
                     self._numerator.remove(num)
                     unit = num/den
                     if isinstance(unit, RepresentableUnit):
-                        numList, denList = unit.getUnitsLists()
-                        self._numerator += numList
-                        self._denominator += denList
+                        self._numerator += unit.numeratorUnits
+                        self._denominator += unit.denominatorUnits
                 else:
                     den2 = self.unitInDenominator(den)
                     if den2 is not None:
                         self._denominator.remove(den2)
                         unit = den*den2
                         if isinstance(unit, RepresentableUnit):
-                            numList, denList = unit.getUnitsLists()
-                            self._numerator += denList
-                            self._denominator += numList
+                            self._numerator += unit.denominatorUnits
+                            self._denominator += unit.numeratorUnits
                     else:
                         self._denominator.append(den)
 
@@ -309,8 +330,8 @@ class UnitsFraction(RepresentableUnit):
         return self
 
     def __init__(self, left: Union[RepresentableUnit, Iterable, None], right: Union[RepresentableUnit, Iterable, None]=None, *, divide: bool):
-        self._numerator: UnitsList_t = self._numerator
-        self._denominator: UnitsList_t = self._denominator
+        self._numerator: List[Unit] = self._numerator
+        self._denominator: List[Unit] = self._denominator
 
     def __hash__(self) -> int:
         return hash(str(self))
@@ -333,26 +354,24 @@ class UnitsFraction(RepresentableUnit):
 
 
     @property
-    def numerator(self) -> UnitsList_t:
+    def numeratorUnits(self) -> List[Unit]:
         return list(self._numerator)
-
     @property
-    def denominator(self) -> UnitsList_t:
+    def denominatorUnits(self) -> List[Unit]:
         return list(self._denominator)
 
 
-    def getUnitsLists(self) -> Tuple[UnitsList_t, UnitsList_t]:
-        return (list(self._numerator), list(self._denominator))
-
     def hasSameUnit(self, other) -> bool:
-        otherNum, otherDen = other.getUnitsLists()
+        otherNum = other.numeratorUnits
+        otherDen = other.denominatorUnits
         return Counter(self._numerator) == Counter(otherNum) and Counter(self._denominator) == Counter(otherDen)
 
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Number):
             return False
-        otherNum, otherDen = other.getUnitsLists()
+        otherNum = other.numeratorUnits
+        otherDen = other.denominatorUnits
         return self._numerator == otherNum and self._denominator == otherDen
 
     def __ne__(self, other) -> bool:
@@ -372,21 +391,7 @@ class UnitsFraction(RepresentableUnit):
         return None
 
 
-    def __mul__(self, other):
-        return super().__mul__(other)
-
-    def __rmul__(self, other):
-        return super().__rmul__(other)
-
-
-    def __truediv__(self, other):
-        return super().__truediv__(other)
-
-    def __rtruediv__(self, other):
-        return super().__rtruediv__(other)
-
-
-    def __pow__(self, other: Number_t) -> Unit:
+    def __pow__(self, other: Number_t) -> RepresentableUnit:
         if isinstance(other, Number):
             numerator = list()
             denominator = list()
@@ -395,7 +400,6 @@ class UnitsFraction(RepresentableUnit):
             for den in self._denominator:
                 denominator.append(den**other)
             return UnitsFraction(numerator, divide=False) / UnitsFraction(denominator, divide=False)
-
         return super().__pow__(other)
 
 
@@ -415,50 +419,52 @@ class RepresentableValueUnit(ABC):
 
 
     @abstractmethod
+    def __hash__(self) -> int:
+        raise NotImplementedError()
+    @abstractmethod
     def __str__(self) -> str:
-        pass
-
+        raise NotImplementedError()
     def __repr__(self) -> str:
         return self.__str__()
 
 
     @property
     @abstractmethod
+    def numeratorUnits(self) -> List[Unit]:
+        raise NotImplementedError()
+    @property
+    @abstractmethod
+    def denominatorUnits(self) -> List[Unit]:
+        raise NotImplementedError()
+    @property
+    @abstractmethod
     def value(self) -> Number_t:
-        pass
-
+        raise NotImplementedError()
     @property
     @abstractmethod
     def unit(self) -> RepresentableUnit:
-        pass
-
+        raise NotImplementedError()
     @property
     @abstractmethod
     def exp10(self) -> int:
-        pass
+        raise NotImplementedError()
 
 
     @abstractmethod
     def getUnit(self) -> RepresentableUnit:
-        pass
-
-    @abstractmethod
-    def getUnitsLists(self) -> Tuple[UnitsList_t, UnitsList_t]:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def hasSameUnit(self, other) -> bool:
-        pass
+        raise NotImplementedError()
 
 
     @abstractmethod
     def __neg__(self) -> RepresentableValueUnit:
         pass
-
     @abstractmethod
     def __pos__(self) -> RepresentableValueUnit:
         pass
-
     @abstractmethod
     def __abs__(self) -> RepresentableValueUnit:
         pass
@@ -476,66 +482,76 @@ class RepresentableValueUnit(ABC):
 
 
     @abstractmethod
-    def __round__(self, ndigits=0):
-        pass
+    def __round__(self, ndigits=0) -> RepresentableValueUnit:
+        return NotImplemented
     @abstractmethod
-    def __trunc__(self):
-        pass
+    def __trunc__(self) -> RepresentableValueUnit:
+        return NotImplemented
     @abstractmethod
-    def __floor__(self):
-        pass
+    def __floor__(self) -> RepresentableValueUnit:
+        return NotImplemented
     @abstractmethod
-    def __ceil__(self):
-        pass
+    def __ceil__(self) -> RepresentableValueUnit:
+        return NotImplemented
 
 
     @abstractmethod
     def __eq__(self, other) -> bool:
-        return False
-    @abstractmethod
-    def __ne__(self, other) -> bool:
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
         return False
     @abstractmethod
     def __lt__(self, other) -> bool:
-        return False
-    @abstractmethod
-    def __le__(self, other) -> bool:
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
         return False
     @abstractmethod
     def __gt__(self, other) -> bool:
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
         return False
-    @abstractmethod
+
+    def __ne__(self, other) -> bool:
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
+        return not self.__eq__(other)
+    def __le__(self, other) -> bool:
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
+        return not self.__gt__(other)
     def __ge__(self, other) -> bool:
-        return False
+        if not isinstance(other, RepresentableValueUnit):
+            return NotImplemented
+        return not self.__lt__(other)
 
 
     @abstractmethod
-    def __add__(self, other):
+    def __add__(self, other: RepresentableValueUnit) -> RepresentableValueUnit:
         return NotImplemented
 
     @abstractmethod
-    def __radd__(self, other):
-        return NotImplemented
-
-
-    @abstractmethod
-    def __sub__(self, other):
-        return NotImplemented
-
-    @abstractmethod
-    def __rsub__(self, other):
+    def __radd__(self, other: RepresentableValueUnit) -> RepresentableValueUnit:
         return NotImplemented
 
 
     @abstractmethod
-    def __mul__(self, other):
+    def __sub__(self, other: RepresentableValueUnit) -> RepresentableValueUnit:
+        return NotImplemented
+
+    @abstractmethod
+    def __rsub__(self, other: RepresentableValueUnit) -> RepresentableValueUnit:
+        return NotImplemented
+
+
+    @abstractmethod
+    def __mul__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             value = self.value * other
             return ValueUnits(value, self.unit, self.exp10)
         return NotImplemented
 
     @abstractmethod
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             value = other * self.value
             return ValueUnits(value, self.unit, self.exp10)
@@ -543,14 +559,14 @@ class RepresentableValueUnit(ABC):
 
 
     @abstractmethod
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             value = self.value / other
             return ValueUnits(value, self.unit, self.exp10)
         return NotImplemented
 
     @abstractmethod
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             value = other / self.value
             unit = None / self.unit
@@ -560,7 +576,7 @@ class RepresentableValueUnit(ABC):
 
 
     @abstractmethod
-    def __pow__(self, other: Number_t):
+    def __pow__(self, other: Number_t) -> RepresentableValueUnit:
         return NotImplemented
 
 
@@ -578,13 +594,16 @@ class ValueUnits(RepresentableValueUnit):
 
         if not isinstance(value, Number):
             raise TypeError("Parameter `value` must be a Number, not an " + type(value).__name__ + ".")
-        if not isinstance(unit, RepresentableUnit):
+        if not isinstance(unit, (RepresentableUnit, Number, type(None))):
             raise TypeError("Parameter `unit` must be an unit type, not an " + type(unit).__name__ + ".")
         if not isinstance(exp10, int):
             raise TypeError("Parameter `exp10` must be an int, not an " + type(exp10).__name__ + ".")
 
-        if unit == 1:
-            return value*(10**exp10)
+        if not isinstance(unit, RepresentableUnit):
+            if (isinstance(unit, Number) and unit == 1) or unit is None:
+                return value*(10**exp10)
+            else:
+                raise TypeError("Parameter `unit` must be an unit type, not an " + type(unit).__name__ + ".")
 
         return self
 
@@ -605,13 +624,17 @@ class ValueUnits(RepresentableValueUnit):
 
 
     @property
+    def numeratorUnits(self) -> List[Unit]:
+        return self.unit.numeratorUnits
+    @property
+    def denominatorUnits(self) -> List[Unit]:
+        return self.unit.denominatorUnits
+    @property
     def value(self) -> Number_t:
         return self._value
-
     @property
     def unit(self) -> RepresentableUnit:
         return self._unit
-
     @property
     def exp10(self) -> int:
         return self._exp10
@@ -620,9 +643,6 @@ class ValueUnits(RepresentableValueUnit):
     def getUnit(self) -> RepresentableUnit:
         return self._unit
 
-    def getUnitsLists(self) -> Tuple[UnitsList_t, UnitsList_t]:
-        return self._unit.getUnitsLists()
-
     def hasSameUnit(self, other) -> bool:
         if isinstance(other, RepresentableUnit):
             return self._unit.hasSameUnit(other)
@@ -630,78 +650,80 @@ class ValueUnits(RepresentableValueUnit):
 
 
     def __neg__(self) -> RepresentableValueUnit:
-        return ValueUnits(-self._value, self._unit, self._exp10)
+        return ValueUnits(-self.value, self.unit, self.exp10)
     def __pos__(self) -> RepresentableValueUnit:
-        return ValueUnits(self._value, self._unit, self._exp10)
+        return ValueUnits(self.value, self.unit, self.exp10)
     def __abs__(self) -> RepresentableValueUnit:
-        return ValueUnits(abs(self._value), self._unit, self._exp10)
+        return ValueUnits(abs(self.value), self.unit, self.exp10)
 
 
     def __int__(self) -> int:
-        return int(self._value*(10**self._exp10))
+        return int(self.value*(10**self._exp10))
     def __float__(self) -> float:
-        return float(self._value*(10**self._exp10))
+        return float(self.value*(10**self._exp10))
     def __complex__(self) -> complex:
-        return complex(self._value*(10**self._exp10))
+        return complex(self.value*(10**self._exp10))
 
 
-    def __round__(self, ndigits=0):
-        return ValueUnits(round(self._value, ndigits), self._unit, self._exp10)
-    def __trunc__(self):
-        return ValueUnits(trunc(self._value), self._unit, self._exp10)
-    def __floor__(self):
-        return ValueUnits(floor(self._value), self._unit, self._exp10)
-    def __ceil__(self):
-        return ValueUnits(ceil(self._value), self._unit, self._exp10)
+    def __round__(self, ndigits=0) -> RepresentableValueUnit:
+        if not isinstance(self.value, (Complex, complex)):
+            return ValueUnits(round(self.value, ndigits), self.unit, self.exp10)
+        return super().__round__(ndigits)
+    def __trunc__(self) -> RepresentableValueUnit:
+        if not isinstance(self.value, (Complex, complex)):
+            return ValueUnits(trunc(self.value), self.unit, self.exp10)
+        return super().__trunc__()
+    def __floor__(self) -> RepresentableValueUnit:
+        if not isinstance(self.value, (Complex, complex)):
+            return ValueUnits(floor(self.value), self.unit, self.exp10)
+        return super().__floor__()
+    def __ceil__(self) -> RepresentableValueUnit:
+        if not isinstance(self.value, (Complex, complex)):
+            return ValueUnits(ceil(self.value), self.unit, self.exp10)
+        return super().__ceil__()
 
 
     def __eq__(self, other) -> bool:
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                if self._value*(10**self._exp10) == other.value*(10**other.exp10):
+                if self.value*(10**self.exp10) == other.value*(10**other.exp10):
                     return True
-        return False
-    def __ne__(self, other) -> bool:
-        return not self.__eq__(other)
+        return super().__eq__(other)
     def __lt__(self, other) -> bool:
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
                 if self.value*(10**self.exp10) < other.value*(10**other.exp10):
                     return True
-        return False
-    def __le__(self, other) -> bool:
+        return super().__lt__(other)
+    def __gt__(self, other) -> bool:
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                if self.value*(10**self.exp10) <= other.value*(10**other.exp10):
+                if self.value*(10**self.exp10) > other.value*(10**other.exp10):
                     return True
-        return False
-    def __gt__(self, other) -> bool:
-        return not self.__le__(other)
-    def __ge__(self, other) -> bool:
-        return not self.__lt__(other)
+        return super().__gt__(other)
 
 
     def __add__(self, other):
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                unit = self._unit
-                exp10 = self._exp10
+                unit = self.unit
+                exp10 = self.exp10
                 if self._exp10 == other._exp10:
-                    value = self._value + other._value
+                    value = self.value + other.value
                 else:
-                    value = self._value + other._value*10**(other._exp10-self._exp10)
+                    value = self.value + other.value*10**(other.exp10-self.exp10)
                 return ValueUnits(value, unit, exp10)
         return super().__add__(other)
 
     def __radd__(self, other):
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                unit = self._unit
-                exp10 = self._exp10
-                if self._exp10 == other._exp10:
-                    value = self._value + other._value
+                unit = self.unit
+                exp10 = self.exp10
+                if self.exp10 == other.exp10:
+                    value = self.value + other.value
                 else:
-                    value = self._value + other._value*10**(other._exp10-self._exp10)
+                    value = self.value + other.value*10**(other.exp10-self.exp10)
                 return ValueUnits(value, unit, exp10)
         return super().__radd__(other)
 
@@ -709,66 +731,66 @@ class ValueUnits(RepresentableValueUnit):
     def __sub__(self, other):
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                unit = self._unit
-                exp10 = self._exp10
-                if self._exp10 == other._exp10:
-                    value = self._value - other._value
+                unit = self.unit
+                exp10 = self.exp10
+                if self._exp10 == other.exp10:
+                    value = self.value - other.value
                 else:
-                    value = self._value - other._value*10**(other._exp10-self._exp10)
+                    value = self.value - other.value*10**(other.exp10-self.exp10)
                 return ValueUnits(value, unit, exp10)
         return super().__sub__(other)
 
     def __rsub__(self, other):
         if isinstance(other, RepresentableValueUnit):
             if self.hasSameUnit(other):
-                unit = self._unit
-                exp10 = self._exp10
-                if self._exp10 == other._exp10:
-                    value = other._value - self._value
+                unit = self.unit
+                exp10 = self.exp10
+                if self.exp10 == other.exp10:
+                    value = other.value - self.value
                 else:
-                    value = other._value*10**(other._exp10-self._exp10) - self._value
+                    value = other.value*10**(other.exp10-self.exp10) - self.value
                 return ValueUnits(value, unit, exp10)
         return super().__rsub__(other)
 
 
     def __mul__(self, other):
         if isinstance(other, RepresentableValueUnit):
-            value = self._value * other._value
-            unit = self._unit * other._unit
-            exp10 = self._exp10 + other._exp10
+            value = self.value * other.value
+            unit = self.unit * other.unit
+            exp10 = self.exp10 + other.exp10
             return ValueUnits(value, unit, exp10)
         return super().__mul__(other)
 
     def __rmul__(self, other):
         if isinstance(other, RepresentableValueUnit):
-            value = self._value * other._value
-            unit = self._unit * other._unit
-            exp10 = self._exp10 + other._exp10
+            value = self.value * other.value
+            unit = self.unit * other.unit
+            exp10 = self.exp10 + other.exp10
             return ValueUnits(value, unit, exp10)
         return super().__rmul__(other)
 
 
     def __truediv__(self, other):
         if isinstance(other, RepresentableValueUnit):
-            value = self._value / other._value
-            unit = self._unit / other._unit
-            exp10 = self._exp10 - other._exp10
+            value = self.value / other.value
+            unit = self.unit / other.unit
+            exp10 = self.exp10 - other.exp10
             return ValueUnits(value, unit, exp10)
         return super().__truediv__(other)
 
     def __rtruediv__(self, other):
         if isinstance(other, RepresentableValueUnit):
-            value = other._value / self._value
-            unit = other._unit / self._unit
-            exp10 = other._exp10 - self._exp10
+            value = other.value / self.value
+            unit = other.unit / self.unit
+            exp10 = other.exp10 - self.exp10
             return ValueUnits(value, unit, exp10)
         return super().__rtruediv__(other)
 
 
     def __pow__(self, other: Number_t):
         if isinstance(other, Number):
-            value = self._value ** other
-            unit = self._unit ** other
-            exp10 = self._exp10 * other
+            value = self.value ** other
+            unit = self.unit ** other
+            exp10 = self.exp10 * other
             return ValueUnits(value, unit, exp10)
         return super().__pow__(other)
