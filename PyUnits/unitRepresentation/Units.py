@@ -10,7 +10,7 @@ from ..TypesHelper import Number_t
 from ..prefixes import SIPrefixes
 
 
-class RepresentableUnit(ABC):
+class Representable(ABC):
     def copy(self):
         obj = super().__new__(self.getClass())
         for key, value in self.__dict__.items():
@@ -22,7 +22,6 @@ class RepresentableUnit(ABC):
 
     def className(self) -> str:
         return self.__class__.__name__
-
 
     @abstractmethod
     def __hash__(self) -> int:
@@ -43,9 +42,8 @@ class RepresentableUnit(ABC):
     def denominatorUnits(self) -> List[Unit]:
         raise NotImplementedError()
 
-
     @abstractmethod
-    def hasSameUnit(self, other: RepresentableUnit) -> bool:
+    def hasSameUnit(self, other: Representable) -> bool:
         raise NotImplementedError()
 
 
@@ -56,6 +54,26 @@ class RepresentableUnit(ABC):
         return not self.__eq__(other)
 
 
+    @abstractmethod
+    def __mul__(self, other):
+        return NotImplemented
+    @abstractmethod
+    def __rmul__(self, other):
+        return NotImplemented
+
+    @abstractmethod
+    def __truediv__(self, other):
+        return NotImplemented
+    @abstractmethod
+    def __rtruediv__(self, other):
+        return NotImplemented
+
+    @abstractmethod
+    def __pow__(self, other: Number_t):
+        return NotImplemented
+
+
+class RepresentableUnit(Representable):
     @overload
     def __mul__(self, other: RepresentableUnit) -> UnitsFraction: ...
     @overload
@@ -69,7 +87,7 @@ class RepresentableUnit(ABC):
             return ValueUnits(other, self)
         if other is None:
             return self
-        return NotImplemented
+        return super().__mul__(other)
 
     @overload
     def __rmul__(self, other: RepresentableUnit) -> UnitsFraction: ...
@@ -84,7 +102,7 @@ class RepresentableUnit(ABC):
             return ValueUnits(other, self)
         if other is None:
             return self
-        return NotImplemented
+        return super().__rmul__(other)
 
 
     @overload
@@ -100,7 +118,7 @@ class RepresentableUnit(ABC):
             return ValueUnits(1/other, self)
         if other is None:
             return self
-        return NotImplemented
+        return super().__truediv__(other)
 
     @overload
     def __rtruediv__(self, other: RepresentableUnit) -> UnitsFraction: ...
@@ -115,12 +133,8 @@ class RepresentableUnit(ABC):
             return ValueUnits(other, UnitsFraction(None, self, divide=True))
         if other is None:
             return UnitsFraction(None, self, divide=True)
-        return NotImplemented
+        return super().__rtruediv__(other)
 
-
-    @abstractmethod
-    def __pow__(self, other: Number_t) -> RepresentableUnit:
-        return NotImplemented
 
 
 class Unit(RepresentableUnit):
@@ -182,7 +196,7 @@ class Unit(RepresentableUnit):
         return self._power
 
 
-    def hasSameUnit(self, other: RepresentableUnit) -> bool:
+    def hasSameUnit(self, other: Representable) -> bool:
         otherNum = other.numeratorUnits
         otherDen = other.denominatorUnits
         if len(otherDen) != 0:
@@ -191,7 +205,7 @@ class Unit(RepresentableUnit):
             return False
         return self.unit == otherNum[0].unit and self.defaultPrefix == otherNum[0].defaultPrefix and self.power == otherNum[0].power
 
-    def hasSameBaseUnit(self, other: RepresentableUnit) -> bool:
+    def hasSameBaseUnit(self, other: Representable) -> bool:
         otherNum = other.numeratorUnits
         otherDen = other.denominatorUnits
         if len(otherDen) != 0:
@@ -218,29 +232,26 @@ class Unit(RepresentableUnit):
             return False
         return True
 
-    def __ne__(self, other) -> bool:
-        return not self.__eq__(other)
-
 
     def __mul__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
-            return Unit(self._unit, self._defaultPrefix, power=self._power+other._power)
+            return Unit(self.unit, self.defaultPrefix, power=self.power+other.power)
         return super().__mul__(other)
 
     def __rmul__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
-            return Unit(self._unit, self._defaultPrefix, power=other._power+self._power)
+            return Unit(self.unit, self.defaultPrefix, power=other.power+self.power)
         return super().__rmul__(other)
 
 
     def __truediv__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
-            return Unit(self._unit, self._defaultPrefix, power=self._power-other._power)
+            return Unit(self.unit, self.defaultPrefix, power=self.power-other.power)
         return super().__truediv__(other)
 
     def __rtruediv__(self, other):
         if isinstance(other, Unit) and self.hasSameBaseUnit(other):
-            return Unit(self._unit, self._defaultPrefix, power=other._power-self._power)
+            return Unit(self.unit, self.defaultPrefix, power=other.power-self.power)
         return super().__rtruediv__(other)
 
 
@@ -374,9 +385,6 @@ class UnitsFraction(RepresentableUnit):
         otherDen = other.denominatorUnits
         return self._numerator == otherNum and self._denominator == otherDen
 
-    def __ne__(self, other) -> bool:
-        return not self.__eq__(other)
-
 
     def unitInNumerator(self, unit: Unit) -> Optional[Unit]:
         for num in self._numerator:
@@ -404,38 +412,7 @@ class UnitsFraction(RepresentableUnit):
 
 
 
-class RepresentableValueUnit(ABC):
-    def copy(self):
-        obj = super().__new__(self.getClass())
-        for key, value in self.__dict__.items():
-            if isinstance(value, list):
-                obj.__dict__[key] = list(value)
-            else:
-                obj.__dict__[key] = value
-        return obj
-
-    def className(self) -> str:
-        return self.__class__.__name__
-
-
-    @abstractmethod
-    def __hash__(self) -> int:
-        raise NotImplementedError()
-    @abstractmethod
-    def __str__(self) -> str:
-        raise NotImplementedError()
-    def __repr__(self) -> str:
-        return self.__str__()
-
-
-    @property
-    @abstractmethod
-    def numeratorUnits(self) -> List[Unit]:
-        raise NotImplementedError()
-    @property
-    @abstractmethod
-    def denominatorUnits(self) -> List[Unit]:
-        raise NotImplementedError()
+class RepresentableValueUnit(Representable):
     @property
     @abstractmethod
     def value(self) -> Number_t:
@@ -447,15 +424,6 @@ class RepresentableValueUnit(ABC):
     @property
     @abstractmethod
     def exp10(self) -> int:
-        raise NotImplementedError()
-
-
-    @abstractmethod
-    def getUnit(self) -> RepresentableUnit:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def hasSameUnit(self, other) -> bool:
         raise NotImplementedError()
 
 
@@ -496,11 +464,6 @@ class RepresentableValueUnit(ABC):
 
 
     @abstractmethod
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, RepresentableValueUnit):
-            return NotImplemented
-        return False
-    @abstractmethod
     def __lt__(self, other) -> bool:
         if not isinstance(other, RepresentableValueUnit):
             return NotImplemented
@@ -511,10 +474,6 @@ class RepresentableValueUnit(ABC):
             return NotImplemented
         return False
 
-    def __ne__(self, other) -> bool:
-        if not isinstance(other, RepresentableValueUnit):
-            return NotImplemented
-        return not self.__eq__(other)
     def __le__(self, other) -> bool:
         if not isinstance(other, RepresentableValueUnit):
             return NotImplemented
@@ -548,14 +507,14 @@ class RepresentableValueUnit(ABC):
         if isinstance(other, Number):
             value = self.value * other
             return ValueUnits(value, self.unit, self.exp10)
-        return NotImplemented
+        return super().__mul__(other)
 
     @abstractmethod
     def __rmul__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             value = other * self.value
             return ValueUnits(value, self.unit, self.exp10)
-        return NotImplemented
+        return super().__rmul__(other)
 
 
     @abstractmethod
@@ -563,7 +522,7 @@ class RepresentableValueUnit(ABC):
         if isinstance(other, Number):
             value = self.value / other
             return ValueUnits(value, self.unit, self.exp10)
-        return NotImplemented
+        return super().__truediv__(other)
 
     @abstractmethod
     def __rtruediv__(self, other: Union[RepresentableValueUnit, Number_t]) -> Union[RepresentableValueUnit, Number_t]:
@@ -572,12 +531,7 @@ class RepresentableValueUnit(ABC):
             unit = None / self.unit
             exp10 = 0 - self.exp10
             return ValueUnits(value, unit, exp10)
-        return NotImplemented
-
-
-    @abstractmethod
-    def __pow__(self, other: Number_t) -> RepresentableValueUnit:
-        return NotImplemented
+        return super().__rtruediv__(other)
 
 
 class ValueUnits(RepresentableValueUnit):
@@ -640,13 +594,12 @@ class ValueUnits(RepresentableValueUnit):
         return self._exp10
 
 
-    def getUnit(self) -> RepresentableUnit:
-        return self._unit
-
-    def hasSameUnit(self, other) -> bool:
+    def hasSameUnit(self, other: Representable) -> bool:
         if isinstance(other, RepresentableUnit):
-            return self._unit.hasSameUnit(other)
-        return self._unit.hasSameUnit(other.getUnit())
+            return self.unit.hasSameUnit(other)
+        if isinstance(other, RepresentableValueUnit):
+            return self.unit.hasSameUnit(other.unit)
+        raise NotImplementedError()
 
 
     def __neg__(self) -> RepresentableValueUnit:
