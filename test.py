@@ -1,8 +1,11 @@
 from PyUnits import SIUnits, SIDerivedUnits, ImperialUnits
 
 a = SIUnits.meterUnit(15)
-b = SIUnits.kilogramUnit(8)
+b = SIUnits.kilogramUnit(8, exp10=2)
 c = SIUnits.secondUnit(2)
+
+print(b, b%6)
+print(a, a/4, a//4)
 
 n = a*b/(c*c)
 print(n)
