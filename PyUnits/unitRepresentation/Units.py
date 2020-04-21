@@ -8,9 +8,10 @@ from typing import List, Tuple, Optional, Union, overload
 from typing import SupportsInt, SupportsFloat, SupportsComplex
 
 from ..TypesHelper import Number_t
+# from .IRepresentable import Representable
 from ..prefixes import SIPrefixes
 
-
+# """
 class Representable(ABC):
     def copy(self):
         obj = super().__new__(self.getClass())
@@ -57,13 +58,19 @@ class Representable(ABC):
 
     @abstractmethod
     def __mul__(self, other):
+        if other is None:
+            return self
         return NotImplemented
     @abstractmethod
     def __rmul__(self, other):
+        if other is None:
+            return self
         return NotImplemented
 
     @abstractmethod
     def __truediv__(self, other):
+        if other is None:
+            return self
         return NotImplemented
     @abstractmethod
     def __rtruediv__(self, other):
@@ -71,6 +78,8 @@ class Representable(ABC):
 
     @abstractmethod
     def __floordiv__(self, other):
+        if other is None:
+            return self
         return NotImplemented
     @abstractmethod
     def __rfloordiv__(self, other):
@@ -78,8 +87,10 @@ class Representable(ABC):
 
     @abstractmethod
     def __pow__(self, other: Number_t):
+        if other is None:
+            return self
         return NotImplemented
-
+# """
 
 class RepresentableUnit(Representable):
     @overload
@@ -93,8 +104,6 @@ class RepresentableUnit(Representable):
             return UnitsFraction(self, other, divide=False)
         if isinstance(other, Number):
             return ValueUnits(self, other)
-        if other is None:
-            return self
         return super().__mul__(other)
 
     @overload
@@ -108,8 +117,6 @@ class RepresentableUnit(Representable):
             return UnitsFraction(other, self, divide=False)
         if isinstance(other, Number):
             return ValueUnits(other, self)
-        if other is None:
-            return self
         return super().__rmul__(other)
 
 
@@ -124,8 +131,6 @@ class RepresentableUnit(Representable):
             return UnitsFraction(self, other, divide=True)
         if isinstance(other, Number):
             return ValueUnits(1/other, self)
-        if other is None:
-            return self
         return super().__truediv__(other)
 
     @overload
@@ -144,8 +149,12 @@ class RepresentableUnit(Representable):
         return super().__rtruediv__(other)
 
     def __floordiv__(self, other):
+        if isinstance(other, Number):
+            return ValueUnits(1//other, self)
         return self.__truediv__(other)
     def __rfloordiv__(self, other):
+        if isinstance(other, Number):
+            return ValueUnits(other//1, UnitsFraction(None, self, divide=True))
         return self.__rtruediv__(other)
 
 
@@ -273,7 +282,7 @@ class Unit(RepresentableUnit):
         return super().__rtruediv__(other)
 
 
-    def __pow__(self, other: Number_t) -> RepresentableUnit:
+    def __pow__(self, other: Number_t) -> Union[RepresentableUnit, Number_t]:
         if isinstance(other, Number):
             if other == 1:
                 return self
@@ -322,7 +331,6 @@ class UnitsFraction(RepresentableUnit):
                     if isinstance(unit, RepresentableUnit):
                         self._numerator += unit.numeratorUnits
                         self._denominator += unit.denominatorUnits
-
                 else:
                     num2 = self.unitInNumerator(num)
                     if num2 is not None:
@@ -419,7 +427,7 @@ class UnitsFraction(RepresentableUnit):
         return None
 
 
-    def __pow__(self, other: Number_t) -> RepresentableUnit:
+    def __pow__(self, other: Number_t) -> Union[RepresentableUnit, Number_t]:
         if isinstance(other, Number):
             numerator = list()
             denominator = list()
@@ -449,38 +457,38 @@ class RepresentableValueUnit(Representable, SupportsInt, SupportsFloat, Supports
 
     @abstractmethod
     def __neg__(self) -> RepresentableValueUnit:
-        pass
+        raise NotImplementedError()
     @abstractmethod
     def __pos__(self) -> RepresentableValueUnit:
-        pass
+        raise NotImplementedError()
     @abstractmethod
     def __abs__(self) -> RepresentableValueUnit:
-        pass
+        raise NotImplementedError()
 
 
     @abstractmethod
     def __int__(self) -> int:
-        pass
+        raise NotImplementedError()
     @abstractmethod
     def __float__(self) -> float:
-        pass
+        raise NotImplementedError()
     @abstractmethod
     def __complex__(self) -> complex:
-        pass
+        raise NotImplementedError()
 
 
     @abstractmethod
     def __round__(self, ndigits: int=0) -> RepresentableValueUnit:
-        return NotImplemented
+        raise NotImplementedError()
     @abstractmethod
     def __trunc__(self) -> RepresentableValueUnit:
-        return NotImplemented
+        raise NotImplementedError()
     @abstractmethod
     def __floor__(self) -> RepresentableValueUnit:
-        return NotImplemented
+        raise NotImplementedError()
     @abstractmethod
     def __ceil__(self) -> RepresentableValueUnit:
-        return NotImplemented
+        raise NotImplementedError()
 
 
     @abstractmethod
@@ -586,7 +594,7 @@ class ValueUnits(RepresentableValueUnit):
 
     # inmutable
 
-    def __new__(cls, value: Number_t, unit: RepresentableUnit, exp10: int=0):
+    def __new__(cls, value: Number_t, unit: Union[RepresentableUnit, Number_t, None], exp10: int=0):
         self = super(ValueUnits, cls).__new__(cls)
 
         if not isinstance(value, Number):
@@ -606,7 +614,7 @@ class ValueUnits(RepresentableValueUnit):
 
         return self
 
-    def __init__(self, value: Number_t, unit: RepresentableUnit, exp10: int=0):
+    def __init__(self, value: Number_t, unit: Union[RepresentableUnit, Number_t, None], exp10: int=0):
         self._value: Number_t = self.value
         self._unit: RepresentableUnit = self.unit
         self._exp10: int = self.exp10
@@ -802,7 +810,7 @@ class ValueUnits(RepresentableValueUnit):
         return super().__rfloordiv__(other)
 
 
-    def __pow__(self, other: Number_t):
+    def __pow__(self, other: Number_t) -> Union[RepresentableValueUnit, Number_t]:
         if isinstance(other, Number):
             unit = self.unit ** other
             if isinstance(other, (Integral, int)):
